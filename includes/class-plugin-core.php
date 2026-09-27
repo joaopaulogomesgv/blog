@@ -37,6 +37,8 @@ class BA_Plugin_Core {
             'includes/class-post-creator.php',
             'includes/class-elementor-builder.php',
             'includes/class-scheduler.php',
+            'includes/class-pomaroli-integration.php',
+            'includes/class-pomaroli-opportunities.php',
         );
 
         foreach ( $files as $file ) {
@@ -67,6 +69,12 @@ class BA_Plugin_Core {
             add_action( 'wp_ajax_ba_delete_log', array( $this, 'ajax_delete_log' ) );
             add_action( 'wp_ajax_ba_clear_logs', array( $this, 'ajax_clear_logs' ) );
             add_action( 'wp_ajax_ba_diagnose_api', array( $this, 'ajax_diagnose_api' ) );
+
+            // AJAX handlers SEO Pomaroli
+            add_action( 'wp_ajax_ba_pomaroli_sync_cache', array( $this, 'ajax_pomaroli_sync_cache' ) );
+            add_action( 'wp_ajax_ba_pomaroli_queue_opportunity', array( $this, 'ajax_pomaroli_queue_opportunity' ) );
+            add_action( 'wp_ajax_ba_pomaroli_save_settings', array( $this, 'ajax_pomaroli_save_settings' ) );
+            add_action( 'wp_ajax_ba_pomaroli_generate_now', array( $this, 'ajax_pomaroli_generate_now' ) );
         }
 
         add_action( 'wp_head', array( $this, 'output_schema_markup' ) );
@@ -320,6 +328,145 @@ class BA_Plugin_Core {
         $result = $ai->diagnose_api( $provider, $api_key, $model );
 
         wp_send_json_success( $result );
+    }
+
+    public function ajax_pomaroli_sync_cache() {
+        check_ajax_referer( 'ba_admin_nonce', 'nonce' );
+        if ( ! current_user_can( 'edit_posts' ) ) {
+            wp_send_json_error( array( 'message' => __( 'Sem permissão.', 'blog-automatico' ) ) );
+        }
+
+        if ( ! class_exists( 'BA_Pomaroli_Integration' ) ) {
+            wp_send_json_error( array( 'message' => __( 'Módulo Pomaroli não carregado.', 'blog-automatico' ) ) );
+        }
+
+        $integration = BA_Pomaroli_Integration::get_instance();
+        $integration->clear_cache();
+        $stats = $integration->get_stats( true );
+
+        $opportunities_mgr = BA_Pomaroli_Opportunities::get_instance();
+        $opportunities = $opportunities_mgr->generate_opportunities( true );
+
+        wp_send_json_success( array(
+            'message'       => __( 'Dados sincronizados e cache atualizado com sucesso!', 'blog-automatico' ),
+            'stats'         => $stats,
+            'opportunities' => count( $opportunities ),
+        ) );
+    }
+
+    public function ajax_pomaroli_queue_opportunity() {
+        check_ajax_referer( 'ba_admin_nonce', 'nonce' );
+        if ( ! current_user_can( 'edit_posts' ) ) {
+            wp_send_json_error( array( 'message' => __( 'Sem permissão.', 'blog-automatico' ) ) );
+        }
+
+        $hash = isset( $_POST['hash'] ) ? sanitize_text_field( wp_unslash( $_POST['hash'] ) ) : '';
+        if ( empty( $hash ) ) {
+            wp_send_json_error( array( 'message' => __( 'Hash da oportunidade inválido.', 'blog-automatico' ) ) );
+        }
+
+        $opportunities_mgr = BA_Pomaroli_Opportunities::get_instance();
+        $result = $opportunities_mgr->queue_opportunity( $hash );
+
+        if ( is_wp_error( $result ) ) {
+            wp_send_json_error( array( 'message' => $result->get_error_message() ) );
+        }
+
+        wp_send_json_success( array( 'message' => __( 'Oportunidade adicionada à fila com sucesso!', 'blog-automatico' ) ) );
+    }
+
+    public function ajax_pomaroli_save_settings() {
+        check_ajax_referer( 'ba_admin_nonce', 'nonce' );
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( array( 'message' => __( 'Sem permissão.', 'blog-automatico' ) ) );
+        }
+
+        $data = array(
+            'min_questoes'         => isset( $_POST['min_questoes'] ) ? intval( $_POST['min_questoes'] ) : 10,
+            'auto_generate'        => isset( $_POST['auto_generate'] ) ? sanitize_text_field( wp_unslash( $_POST['auto_generate'] ) ) : '0',
+            'auto_publish'         => isset( $_POST['auto_publish'] ) ? sanitize_text_field( wp_unslash( $_POST['auto_publish'] ) ) : '0',
+            'post_status'          => isset( $_POST['post_status'] ) ? sanitize_text_field( wp_unslash( $_POST['post_status'] ) ) : 'draft',
+            'posts_per_day'        => isset( $_POST['posts_per_day'] ) ? intval( $_POST['posts_per_day'] ) : 1,
+            'enable_internal_cta'  => isset( $_POST['enable_internal_cta'] ) ? '1' : '0',
+            'include_real_samples' => isset( $_POST['include_real_samples'] ) ? '1' : '0',
+        );
+
+        $opportunities_mgr = BA_Pomaroli_Opportunities::get_instance();
+        $opportunities_mgr->update_settings( $data );
+
+        // Limpar lista cacheada para recalcular com o novo mínimo de questões
+        delete_transient( 'ba_pomaroli_opportunities_list' );
+
+        wp_send_json_success( array( 'message' => __( 'Configurações de SEO Pomaroli salvas com sucesso!', 'blog-automatico' ) ) );
+    }
+
+    public function ajax_pomaroli_generate_now() {
+        check_ajax_referer( 'ba_admin_nonce', 'nonce' );
+        if ( ! current_user_can( 'edit_posts' ) ) {
+            wp_send_json_error( array( 'message' => __( 'Sem permissão.', 'blog-automatico' ) ) );
+        }
+
+        $hash = isset( $_POST['hash'] ) ? sanitize_text_field( wp_unslash( $_POST['hash'] ) ) : '';
+        if ( empty( $hash ) ) {
+            wp_send_json_error( array( 'message' => __( 'Hash da oportunidade inválido.', 'blog-automatico' ) ) );
+        }
+
+        $opportunities_mgr = BA_Pomaroli_Opportunities::get_instance();
+        $opportunities = $opportunities_mgr->generate_opportunities();
+        $target = null;
+
+        foreach ( $opportunities as $op ) {
+            if ( $op['hash'] === $hash ) {
+                $target = $op;
+                break;
+            }
+        }
+
+        if ( ! $target ) {
+            wp_send_json_error( array( 'message' => __( 'Oportunidade não encontrada.', 'blog-automatico' ) ) );
+        }
+
+        // Checar se já existe post
+        if ( $target['existing_post_id'] > 0 ) {
+            wp_send_json_error( array( 'message' => __( 'Já existe um artigo criado para esta oportunidade.', 'blog-automatico' ) ) );
+        }
+
+        $settings = $opportunities_mgr->get_settings();
+        $creator  = BA_Post_Creator::get_instance();
+
+        // Parâmetros Pomaroli
+        $pomaroli_context = array(
+            'hash'           => $target['hash'],
+            'type'           => $target['type'],
+            'banca'          => $target['banca'],
+            'banca_slug'     => $target['banca_slug'],
+            'disciplina'     => $target['disciplina'],
+            'disciplina_slug'=> $target['disciplina_slug'],
+            'assunto'        => $target['assunto'],
+            'assunto_slug'   => $target['assunto_slug'],
+            'instituicao'    => isset( $target['instituicao'] ) ? $target['instituicao'] : '',
+            'instituicao_slug'=> isset( $target['instituicao_slug'] ) ? $target['instituicao_slug'] : '',
+            'questoes_count' => $target['questoes_count'],
+        );
+
+        $result = $creator->create_from_idea( $target['idea'], array(
+            'status'           => $settings['post_status'], // Padrão: draft (Modo Seguro)
+            'pomaroli_context' => $pomaroli_context,
+        ) );
+
+        if ( is_wp_error( $result ) ) {
+            wp_send_json_error( array( 'message' => $result->get_error_message() ) );
+        }
+
+        // Limpar cache de oportunidades para refletir o novo artigo
+        delete_transient( 'ba_pomaroli_opportunities_list' );
+
+        wp_send_json_success( array(
+            'message'   => __( 'Artigo gerado com sucesso e salvo como RASCUNHO!', 'blog-automatico' ),
+            'post_id'   => $result['post_id'],
+            'edit_url'  => get_edit_post_link( $result['post_id'], 'raw' ),
+            'view_url'  => get_permalink( $result['post_id'] ),
+        ) );
     }
 
     public function output_schema_markup() {

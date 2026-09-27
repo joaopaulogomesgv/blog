@@ -207,16 +207,42 @@ class BA_SEO_Optimizer {
     }
 
     /**
-     * Cria ou busca categorias sugeridas.
+     * Categorias oficiais e controladas do blog.
      *
-     * @param array $categories Nomes de categorias.
-     * @return array IDs das categorias.
+     * @return array
+     */
+    public static function get_controlled_categories() {
+        return array(
+            'Concursos Públicos',
+            'Bancas',
+            'Disciplinas',
+            'Estudos',
+            'Questões',
+            'Carreiras',
+            'Notícias',
+        );
+    }
+
+    /**
+     * Processa categorias utilizando estritamente a lista de categorias controladas.
+     * A IA NÃO cria categorias WordPress aleatórias automaticamente.
+     *
+     * @param array $categories Nomes de categorias sugeridas pela IA ou módulo.
+     * @return array IDs das categorias válidas.
      */
     public function process_categories( $categories ) {
         $category_ids = array();
+        $controlled   = self::get_controlled_categories();
 
         if ( ! is_array( $categories ) ) {
-            return $category_ids;
+            $categories = ! empty( $categories ) ? array( $categories ) : array();
+        }
+
+        // Garantir que as categorias controladas existam no WordPress
+        foreach ( $controlled as $ctrl_cat ) {
+            if ( ! term_exists( $ctrl_cat, 'category' ) ) {
+                wp_insert_term( $ctrl_cat, 'category' );
+            }
         }
 
         foreach ( $categories as $cat_name ) {
@@ -225,17 +251,49 @@ class BA_SEO_Optimizer {
                 continue;
             }
 
-            // Buscar categoria existente
-            $term = term_exists( $cat_name, 'category' );
-
-            if ( $term ) {
-                $category_ids[] = intval( $term['term_id'] );
-            } else {
-                // Criar nova categoria
-                $new_term = wp_insert_term( $cat_name, 'category' );
-                if ( ! is_wp_error( $new_term ) ) {
-                    $category_ids[] = intval( $new_term['term_id'] );
+            // Normalização e busca na lista controlada
+            $matched_cat = '';
+            foreach ( $controlled as $ctrl_cat ) {
+                if ( 0 === strcasecmp( $ctrl_cat, $cat_name ) || false !== stripos( $cat_name, $ctrl_cat ) || false !== stripos( $ctrl_cat, $cat_name ) ) {
+                    $matched_cat = $ctrl_cat;
+                    break;
                 }
+            }
+
+            // Mapeamentos semânticos comuns
+            if ( empty( $matched_cat ) ) {
+                $lower = strtolower( $cat_name );
+                if ( str_contains( $lower, 'concurso' ) || str_contains( $lower, 'edital' ) || str_contains( $lower, 'vaga' ) ) {
+                    $matched_cat = 'Concursos Públicos';
+                } elseif ( str_contains( $lower, 'banca' ) || str_contains( $lower, 'cebraspe' ) || str_contains( $lower, 'fcc' ) || str_contains( $lower, 'fgv' ) || str_contains( $lower, 'vunesp' ) ) {
+                    $matched_cat = 'Bancas';
+                } elseif ( str_contains( $lower, 'direito' ) || str_contains( $lower, 'portugu' ) || str_contains( $lower, 'matem' ) || str_contains( $lower, 'inform' ) || str_contains( $lower, 'disciplina' ) ) {
+                    $matched_cat = 'Disciplinas';
+                } elseif ( str_contains( $lower, 'quest' ) || str_contains( $lower, 'gabarito' ) || str_contains( $lower, 'simulado' ) ) {
+                    $matched_cat = 'Questões';
+                } elseif ( str_contains( $lower, 'estud' ) || str_contains( $lower, 'prepara' ) || str_contains( $lower, 'revis' ) || str_contains( $lower, 'planejamento' ) ) {
+                    $matched_cat = 'Estudos';
+                } elseif ( str_contains( $lower, 'polic' ) || str_contains( $lower, 'fiscal' ) || str_contains( $lower, 'tribunal' ) || str_contains( $lower, 'carreira' ) ) {
+                    $matched_cat = 'Carreiras';
+                }
+            }
+
+            if ( ! empty( $matched_cat ) ) {
+                $term = term_exists( $matched_cat, 'category' );
+                if ( $term ) {
+                    $term_id = is_array( $term ) ? intval( $term['term_id'] ) : intval( $term );
+                    if ( ! in_array( $term_id, $category_ids, true ) ) {
+                        $category_ids[] = $term_id;
+                    }
+                }
+            }
+        }
+
+        // Se nenhuma categoria controlada deu match, atribuir uma padrão segura
+        if ( empty( $category_ids ) ) {
+            $default_term = term_exists( 'Concursos Públicos', 'category' );
+            if ( $default_term ) {
+                $category_ids[] = is_array( $default_term ) ? intval( $default_term['term_id'] ) : intval( $default_term );
             }
         }
 

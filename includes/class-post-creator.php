@@ -71,9 +71,21 @@ class BA_Post_Creator {
             );
         }
 
-        // Registrar log inicial
+        // Detecção de contexto Pomaroli
+        $pomaroli_context = isset( $options['pomaroli_context'] ) ? $options['pomaroli_context'] : null;
+        $clean_idea = $idea;
+        if ( preg_match( '/^\[POMAROLI:(.+?)\]\s*(.+)$/s', $idea, $matches ) ) {
+            $parsed_json = json_decode( $matches[1], true );
+            if ( is_array( $parsed_json ) ) {
+                $pomaroli_context = array_merge( is_array( $pomaroli_context ) ? $pomaroli_context : array(), $parsed_json );
+            }
+            $clean_idea = trim( $matches[2] );
+        }
+        $options['pomaroli_context'] = $pomaroli_context;
+
+        // Registrar log inicial com título limpo
         $log_id = $this->logger->log_generation( array(
-            'idea'   => $idea,
+            'idea'   => $clean_idea,
             'status' => 'processing',
         ));
 
@@ -90,10 +102,20 @@ class BA_Post_Creator {
 
         // === ETAPA 2: Criar o post no WordPress ===
         $post_status = isset( $options['status'] ) ? $options['status'] : $this->settings->get( 'ba_publish_status' );
+        if ( ! empty( $pomaroli_context ) && ! isset( $options['status'] ) ) {
+            // Modo seguro para conteúdo Pomaroli: sempre Rascunho se não forçado
+            $post_status = 'draft';
+        }
         $template    = isset( $options['template'] ) ? $options['template'] : $this->settings->get( 'ba_default_template' );
 
         // Gerar HTML do conteúdo para o post_content
         $html_content = $this->content_generator->content_to_html( $content );
+
+        // Injetar Links Internos e CTA da Pomaroli se houver contexto
+        if ( ! empty( $pomaroli_context ) && class_exists( 'BA_Pomaroli_Integration' ) ) {
+            $cta_block = BA_Pomaroli_Integration::get_instance()->build_pomaroli_cta_block( $pomaroli_context );
+            $html_content .= "\n" . $cta_block;
+        }
 
         // Processar categorias e tags
         $category_ids = array();
@@ -132,6 +154,14 @@ class BA_Post_Creator {
                 'error_message' => $post_id->get_error_message(),
             ));
             return $post_id;
+        }
+
+        // Metadados Pomaroli para rastreamento de oportunidades e prevenção de duplicidade
+        if ( ! empty( $pomaroli_context ) ) {
+            update_post_meta( $post_id, '_ba_pomaroli_context', $pomaroli_context );
+            if ( ! empty( $pomaroli_context['hash'] ) ) {
+                update_post_meta( $post_id, '_ba_pomaroli_combination_hash', sanitize_text_field( $pomaroli_context['hash'] ) );
+            }
         }
 
         // Definir tags

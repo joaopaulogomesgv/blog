@@ -67,8 +67,39 @@ class BA_Content_Generator {
         $language_label = $this->get_language_label( $language );
         $tone_label     = $this->get_tone_label( $tone );
 
-        $system_prompt = $this->build_system_prompt( $tone_label, $language_label, $length );
-        $user_prompt   = $this->build_user_prompt( $idea, $tone_label, $language_label, $length );
+        $clean_idea = $idea;
+        $pomaroli_context = isset( $options['pomaroli_context'] ) ? $options['pomaroli_context'] : null;
+
+        // Detectar se a ideia veio da fila com metadados [POMAROLI:{json}]
+        if ( preg_match( '/^\[POMAROLI:(.+?)\]\s*(.+)$/s', $idea, $matches ) ) {
+            $parsed_json = json_decode( $matches[1], true );
+            if ( is_array( $parsed_json ) ) {
+                $pomaroli_context = array_merge( is_array( $pomaroli_context ) ? $pomaroli_context : array(), $parsed_json );
+            }
+            $clean_idea = trim( $matches[2] );
+        }
+
+        // Se houver contexto Pomaroli e ainda não tiver amostras, buscar se a integração estiver ativa
+        if ( ! empty( $pomaroli_context ) && empty( $pomaroli_context['sample_questoes'] ) && class_exists( 'BA_Pomaroli_Integration' ) ) {
+            $integration = BA_Pomaroli_Integration::get_instance();
+            if ( $integration->is_active() ) {
+                $filter_args = array();
+                if ( ! empty( $pomaroli_context['banca_slug'] ) ) {
+                    $filter_args['banca'] = $pomaroli_context['banca_slug'];
+                }
+                if ( ! empty( $pomaroli_context['disciplina_slug'] ) ) {
+                    $filter_args['disciplina'] = $pomaroli_context['disciplina_slug'];
+                }
+                if ( ! empty( $pomaroli_context['assunto_slug'] ) ) {
+                    $filter_args['assunto'] = $pomaroli_context['assunto_slug'];
+                }
+                $pomaroli_context['sample_questoes'] = $integration->get_sample_questoes( $filter_args, 2 );
+            }
+        }
+        $options['pomaroli_context'] = $pomaroli_context;
+
+        $system_prompt = $this->build_system_prompt( $tone_label, $language_label, $length, $options );
+        $user_prompt   = $this->build_user_prompt( $clean_idea, $tone_label, $language_label, $length, $options );
 
         $result = $this->ai->chat_completion(
             $system_prompt,
@@ -119,7 +150,7 @@ class BA_Content_Generator {
      * @param int    $length   Comprimento do artigo.
      * @return string
      */
-    private function build_system_prompt( $tone, $language, $length ) {
+    private function build_system_prompt( $tone, $language, $length, $options = array() ) {
         $base = "Você é um redator profissional especialista em SEO tradicional e GEO (Generative Engine Optimization / Otimização para Citação em IAs como ChatGPT, Perplexity e Google AI Overviews). 
 Seu trabalho é criar artigos de blog completos, altamente engajadores, ricos em dados e desenhados para que mecanismos de IA citem este artigo como FONTE AUTORIDADE quando usuários fizerem buscas sobre o assunto.
 
@@ -136,6 +167,15 @@ Regras importantes de redação e GEO (Citação por IAs):
 - Gerar prompts de imagem EM INGLÊS e detalhados para DALL-E 3
 - RESPONDER APENAS COM JSON VÁLIDO e bem formatado, sem texto ou blocos markdown (```json) fora do objeto JSON
 - Em valores de texto com múltiplos parágrafos, use apenas a sequência \\n para separar parágrafos. NUNCA insira quebras de linha brutas (Enter) dentro das aspas do JSON";
+
+        // Regra absoluta para contexto Pomaroli
+        if ( ! empty( $options['pomaroli_context'] ) ) {
+            $base .= "\n\n" . "REGRA ABSOLUTA DE INTEGRIDADE DE DADOS - PLATAFORMA POMAROLI QUESTÕES:
+Você está escrevendo um artigo oficial para o ecossistema Pomaroli Questões.
+- É TERMINANTEMENTE PROIBIDO inventar: quantidade de questões, bancas, datas de provas, editais fictícios ou estatísticas falsas.
+- Você deve utilizar ESTRITAMENTE os dados reais fornecidos no prompt. Se um dado não constar explicitamente, NÃO invente números.
+- Escreva com máxima profundidade didática, fornecendo explicações conceituais reais, dicas práticas de memorização e direcionamento de estudos para concursos públicos.";
+        }
 
         // Integrar Treinamento de IA
         $training = $this->settings->get_training_data();
@@ -260,11 +300,62 @@ Regras importantes de redação e GEO (Citação por IAs):
      * @param int    $length   Comprimento.
      * @return string
      */
-    private function build_user_prompt( $idea, $tone, $language, $length ) {
+    private function build_user_prompt( $idea, $tone, $language, $length, $options = array() ) {
         $min_sections = max( 4, intval( $length / 300 ) );
+        $pomaroli_context = ! empty( $options['pomaroli_context'] ) ? $options['pomaroli_context'] : null;
+
+        $pomaroli_section = '';
+        if ( ! empty( $pomaroli_context ) ) {
+            $pomaroli_section = "\n\nDADOS ESTRUTURADOS REAIS (PLATAFORMA POMAROLI QUESTÕES):\n";
+            $pomaroli_section .= "========================================================\n";
+            if ( ! empty( $pomaroli_context['type'] ) ) {
+                $pomaroli_section .= "- Tipo de Artigo: " . $pomaroli_context['type'] . "\n";
+            }
+            if ( ! empty( $pomaroli_context['banca'] ) ) {
+                $pomaroli_section .= "- Banca Examinadora Real: " . $pomaroli_context['banca'] . "\n";
+            }
+            if ( ! empty( $pomaroli_context['disciplina'] ) ) {
+                $pomaroli_section .= "- Disciplina Real: " . $pomaroli_context['disciplina'] . "\n";
+            }
+            if ( ! empty( $pomaroli_context['assunto'] ) ) {
+                $pomaroli_section .= "- Assunto Real: " . $pomaroli_context['assunto'] . "\n";
+            }
+            if ( ! empty( $pomaroli_context['instituicao'] ) ) {
+                $pomaroli_section .= "- Órgão/Instituição: " . $pomaroli_context['instituicao'] . "\n";
+            }
+            if ( ! empty( $pomaroli_context['questoes_count'] ) ) {
+                $pomaroli_section .= "- Quantidade REAL exata de questões disponíveis no banco: " . (int) $pomaroli_context['questoes_count'] . " questões\n";
+            }
+            $pomaroli_section .= "- REGRA OBRIGATÓRIA: NÃO invente números de questões ou bancas diferentes. Use os números fornecidos acima.\n";
+
+            // Incluir questões de exemplo se houver
+            if ( ! empty( $pomaroli_context['sample_questoes'] ) && is_array( $pomaroli_context['sample_questoes'] ) ) {
+                $pomaroli_section .= "\nEXEMPLOS DE QUESTÕES REAIS CADASTRADAS NO BANCO (analise e comente no artigo):\n";
+                foreach ( $pomaroli_context['sample_questoes'] as $idx => $q ) {
+                    $num = $idx + 1;
+                    $pomaroli_section .= "\n--- Questão Real #{$num} (ID: {$q['id']}) ---\n";
+                    $pomaroli_section .= "Enunciado: " . mb_substr( $q['enunciado'], 0, 400 ) . "...\n";
+                    if ( ! empty( $q['gabarito'] ) ) {
+                        $pomaroli_section .= "Gabarito Oficial: " . $q['gabarito'] . "\n";
+                    }
+                    if ( ! empty( $q['comentario_professor'] ) ) {
+                        $pomaroli_section .= "Comentário do Professor: " . mb_substr( $q['comentario_professor'], 0, 300 ) . "...\n";
+                    }
+                }
+            }
+
+            $pomaroli_section .= "\nESTRUTURA OBRIGATÓRIA DO ARTIGO:\n";
+            $pomaroli_section .= "1. Introdução: relevância prática para aprovação em concursos públicos.\n";
+            $pomaroli_section .= "2. Explicação teórica e didática do assunto/disciplina (regras, conceitos fundamentais e leis).\n";
+            $pomaroli_section .= "3. Pontos importantes e como a banca examinadora costuma formular as questões.\n";
+            $pomaroli_section .= "4. Erros e pegadinhas mais comuns cometidos pelos candidatos.\n";
+            $pomaroli_section .= "5. Estratégia de estudos: como resolver questões para fixar o conteúdo.\n";
+            $pomaroli_section .= "6. Conclusão convidando o estudante a praticar diretamente nas questões da Pomaroli.\n";
+            $pomaroli_section .= "========================================================\n\n";
+        }
 
         return "Com base na ideia: \"{$idea}\"
-
+{$pomaroli_section}
 Gere um artigo completo para blog com aproximadamente {$length} palavras.
 
 Responda com o seguinte JSON:

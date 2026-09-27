@@ -17,6 +17,7 @@
             this.bindRangeSlider();
             this.bindApiKeyToggle();
             this.bindDiagnoseApi();
+            this.bindPomaroliActions();
         },
 
         /**
@@ -626,6 +627,175 @@
             $('html, body').animate({
                 scrollTop: $container.offset().top - 80
             }, 400);
+        },
+
+        /**
+         * Ações do Módulo SEO Pomaroli
+         */
+        bindPomaroliActions: function () {
+            // Sincronizar cache
+            $(document).on('click', '#ba-pomaroli-sync-btn', function (e) {
+                e.preventDefault();
+                const $btn = $(this);
+                $btn.addClass('loading').prop('disabled', true);
+
+                $.ajax({
+                    url: baAdmin.ajaxUrl,
+                    type: 'POST',
+                    data: {
+                        action: 'ba_pomaroli_sync_cache',
+                        nonce: baAdmin.nonce
+                    },
+                    success: function (res) {
+                        if (res.success) {
+                            BA.showNotice('success', res.data.message || 'Dados sincronizados!');
+                            setTimeout(function () { location.reload(); }, 1200);
+                        } else {
+                            BA.showNotice('error', res.data.message || 'Erro ao sincronizar.');
+                        }
+                    },
+                    error: function () {
+                        BA.showNotice('error', 'Falha na requisição ao servidor.');
+                    },
+                    complete: function () {
+                        $btn.removeClass('loading').prop('disabled', false);
+                    }
+                });
+            });
+
+            // Adicionar oportunidade à fila
+            $(document).on('click', '.ba-queue-op-btn', function (e) {
+                e.preventDefault();
+                const $btn = $(this);
+                const hash = $btn.data('hash');
+                $btn.addClass('loading').prop('disabled', true).text('Adicionando...');
+
+                $.ajax({
+                    url: baAdmin.ajaxUrl,
+                    type: 'POST',
+                    data: {
+                        action: 'ba_pomaroli_queue_opportunity',
+                        nonce: baAdmin.nonce,
+                        hash: hash
+                    },
+                    success: function (res) {
+                        if (res.success) {
+                            BA.showNotice('success', res.data.message || 'Adicionado à fila!');
+                            $btn.replaceWith('<span class="ba-badge badge-pending">Na Fila</span>');
+                        } else {
+                            BA.showNotice('error', res.data.message || 'Erro ao adicionar.');
+                            $btn.removeClass('loading').prop('disabled', false).text('+ Fila');
+                        }
+                    },
+                    error: function () {
+                        BA.showNotice('error', 'Falha ao conectar.');
+                        $btn.removeClass('loading').prop('disabled', false).text('+ Fila');
+                    }
+                });
+            });
+
+            // Gerar imediatamente como Rascunho
+            $(document).on('click', '.ba-generate-now-btn', function (e) {
+                e.preventDefault();
+                const $btn = $(this);
+                const hash = $btn.data('hash');
+
+                if (!confirm('Deseja gerar este artigo agora via IA? Ele será salvo como Rascunho para sua revisão.')) {
+                    return;
+                }
+
+                $btn.addClass('loading').prop('disabled', true).text('Gerando...');
+                const $modal = $('#ba-pomaroli-modal');
+                $('#ba-pomaroli-modal-title').text('Gerando Artigo com IA...');
+                $('#ba-pomaroli-modal-desc').text('Consultando dados reais, criando estrutura de tópicos e aplicando SEO.');
+                $modal.fadeIn(200);
+
+                $.ajax({
+                    url: baAdmin.ajaxUrl,
+                    type: 'POST',
+                    data: {
+                        action: 'ba_pomaroli_generate_now',
+                        nonce: baAdmin.nonce,
+                        hash: hash
+                    },
+                    timeout: 120000,
+                    success: function (res) {
+                        $modal.fadeOut(150);
+                        if (res.success) {
+                            BA.showNotice('success', res.data.message || 'Artigo gerado com sucesso!');
+                            $btn.closest('td').html(
+                                '<div class="ba-actions-group">' +
+                                '<a href="' + res.data.edit_url + '" class="ba-btn-icon" target="_blank" title="Editar Post"><span class="dashicons dashicons-edit"></span></a>' +
+                                '<a href="' + res.data.view_url + '" class="ba-btn-icon" target="_blank" title="Ver no Site"><span class="dashicons dashicons-external"></span></a>' +
+                                '</div>'
+                            );
+                        } else {
+                            BA.showNotice('error', res.data.message || 'Falha na geração do artigo.');
+                            $btn.removeClass('loading').prop('disabled', false).text('Gerar');
+                        }
+                    },
+                    error: function () {
+                        $modal.fadeOut(150);
+                        BA.showNotice('error', 'Ocorreu um erro ou tempo limite excedido na geração.');
+                        $btn.removeClass('loading').prop('disabled', false).text('Gerar');
+                    }
+                });
+            });
+
+            // Salvar configurações SEO Pomaroli
+            $(document).on('submit', '#ba-pomaroli-settings-form', function (e) {
+                e.preventDefault();
+                const $form = $(this);
+                const $btn = $form.find('button[type="submit"]');
+                $btn.addClass('loading').prop('disabled', true);
+
+                $.ajax({
+                    url: baAdmin.ajaxUrl,
+                    type: 'POST',
+                    data: $form.serialize() + '&action=ba_pomaroli_save_settings&nonce=' + baAdmin.nonce,
+                    success: function (res) {
+                        if (res.success) {
+                            BA.showNotice('success', res.data.message || 'Configurações salvas!');
+                            setTimeout(function () { location.reload(); }, 1000);
+                        } else {
+                            BA.showNotice('error', res.data.message || 'Erro ao salvar.');
+                        }
+                    },
+                    error: function () {
+                        BA.showNotice('error', 'Falha ao salvar configurações.');
+                    },
+                    complete: function () {
+                        $btn.removeClass('loading').prop('disabled', false);
+                    }
+                });
+            });
+
+            // Filtros rápidos da tabela de oportunidades
+            function filterOpportunitiesTable() {
+                const selectedType = $('#ba-filter-type').val();
+                const selectedStatus = $('#ba-filter-status').val();
+
+                $('#ba-opportunities-table tbody tr').each(function () {
+                    const rowType = $(this).data('type');
+                    const rowStatus = $(this).data('status');
+                    let show = true;
+
+                    if (selectedType && rowType !== selectedType) {
+                        show = false;
+                    }
+                    if (selectedStatus && rowStatus !== selectedStatus) {
+                        show = false;
+                    }
+
+                    if (show) {
+                        $(this).show();
+                    } else {
+                        $(this).hide();
+                    }
+                });
+            }
+
+            $(document).on('change', '#ba-filter-type, #ba-filter-status', filterOpportunitiesTable);
         },
 
         /**
