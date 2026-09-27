@@ -4,7 +4,7 @@ Tags: ai, blog, automatic, elementor, seo, openai, gemini, grok, deepseek, conte
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.1.8
+Stable tag: 1.1.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -14,7 +14,7 @@ Cria posts de blog automaticamente usando IA (OpenAI ChatGPT, Google Gemini, xAI
 
 O **Blog Automático com IA** transforma suas ideias em artigos completos de blog. Você pode colar 100+ ideias de uma vez só e ativar o piloto automático para postar 1 ou 2 artigos por dia sem qualquer intervenção manual!
 
-* Suporte Multi-IA: OpenAI (GPT-4o), Google Gemini (Gemini 2.0 Flash / 2.5 Pro), xAI (Grok 3) e DeepSeek (Chat / Reasoner)
+* Suporte Multi-IA: OpenAI (GPT-4o), Google Gemini (Gemini 3.8 Flash / 3.1 Pro Preview), xAI (Grok 3) e DeepSeek (Chat / Reasoner)
 * Fila em Massa: Cole até centenas de temas de uma única vez
 * Piloto Automático: Define 1 ou 2 posts diários com agendamento autônomo e janelas de horário
 * Imagens em Destaque geradas via DALL-E ou Grok Image
@@ -31,6 +31,13 @@ O **Blog Automático com IA** transforma suas ideias em artigos completos de blo
 5. Vá em 'Fila de Conteúdo', cole seus assuntos e ative o Piloto Automático!
 
 == Changelog ==
+
+= 1.1.9 =
+* Atualização dos modelos Google Gemini para Gemini 3.8 Flash e Gemini 3.1 Pro Preview (substituindo modelos legados descontinuados pelo Google).
+* Fallback automático para gemini-3.8-flash caso o modelo salvo anteriormente na base fosse gemini-2.0-flash.
+* Suporte a teste de conexão em tempo real utilizando os valores digitados no formulário.
+* Aumento da cota de tokens no teste de conexão para compatibilidade com o processamento de raciocínio (thinking) dos modelos recentes do Gemini.
+* Parsing aprimorado para capturar texto em múltiplos blocos de resposta da API do Google.
 
 = 1.1.8 =
 * Correção dos ícones de setas nos campos select: novo chevron moderno, sutil e proporcional com viewBox 24x24 e background-size fixo de 14px

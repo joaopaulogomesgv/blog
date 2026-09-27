@@ -165,8 +165,12 @@ class BA_Plugin_Core {
             wp_send_json_error( array( 'message' => __( 'Sem permissão.', 'blog-automatico' ) ) );
         }
 
+        $provider = isset( $_POST['provider'] ) ? sanitize_text_field( wp_unslash( $_POST['provider'] ) ) : null;
+        $api_key  = isset( $_POST['api_key'] ) ? sanitize_text_field( wp_unslash( $_POST['api_key'] ) ) : null;
+        $model    = isset( $_POST['model'] ) ? sanitize_text_field( wp_unslash( $_POST['model'] ) ) : null;
+
         $ai     = BA_AI_Connector::get_instance();
-        $result = $ai->test_connection();
+        $result = $ai->test_connection( $provider, $api_key, $model );
 
         if ( is_wp_error( $result ) ) {
             wp_send_json_error( array( 'message' => $result->get_error_message() ) );

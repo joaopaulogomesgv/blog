@@ -289,12 +289,19 @@
                 $btn.addClass('loading').prop('disabled', true);
                 $btn.find('.ba-btn-text').text(baAdmin.strings.testing);
 
+                const activeProvider = $('#ba_ai_provider').val() || 'gemini';
+                const apiKey = $('#ba_api_key_' + activeProvider).val();
+                const model = $('#ba_text_model').val();
+
                 $.ajax({
                     url: baAdmin.ajaxUrl,
                     type: 'POST',
                     data: {
                         action: 'ba_test_connection',
-                        nonce: baAdmin.nonce
+                        nonce: baAdmin.nonce,
+                        provider: activeProvider,
+                        api_key: apiKey,
+                        model: model
                     },
                     success: function (response) {
                         if (response.success) {

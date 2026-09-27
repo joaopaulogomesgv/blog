@@ -34,9 +34,10 @@ class BA_AI_Connector {
             'name'     => 'Google Gemini',
             'base_url' => 'https://generativelanguage.googleapis.com/v1beta',
             'models'   => array(
-                'gemini-2.0-flash'   => 'Gemini 2.0 Flash (Rápido)',
-                'gemini-2.5-pro'     => 'Gemini 2.5 Pro (Avançado)',
-                'gemini-2.5-flash'   => 'Gemini 2.5 Flash',
+                'gemini-3.8-flash'       => 'Gemini 3.8 Flash (Recomendado)',
+                'gemini-3.1-pro-preview' => 'Gemini 3.1 Pro Preview (Avançado)',
+                'gemini-flash-latest'    => 'Gemini Flash Latest',
+                'gemini-pro-latest'      => 'Gemini Pro Latest',
             ),
             'image_models'     => array(),
             'supports_images'  => false,
@@ -180,7 +181,13 @@ class BA_AI_Connector {
      * Completion para Google Gemini (API diferente).
      */
     private function gemini_completion( $system_prompt, $user_prompt, $options = array() ) {
-        $model    = isset( $options['model'] ) ? $options['model'] : $this->settings->get( 'ba_text_model' );
+        $model = isset( $options['model'] ) ? $options['model'] : $this->settings->get( 'ba_text_model' );
+
+        // Fallback automático para modelos legados descontinuados ou não configurados
+        if ( empty( $model ) || in_array( $model, array( 'gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-flash', 'gemini-1.5-pro' ), true ) || ! array_key_exists( $model, self::$providers['gemini']['models'] ) ) {
+            $model = 'gemini-3.8-flash';
+        }
+
         $base_url = self::$providers['gemini']['base_url'];
 
         $url = $base_url . '/models/' . $model . ':generateContent?key=' . $this->api_key;
@@ -217,13 +224,22 @@ class BA_AI_Connector {
             $this->total_tokens_used += $tokens;
         }
 
-        if ( isset( $response['candidates'][0]['content']['parts'][0]['text'] ) ) {
-            return array(
-                'content'     => $response['candidates'][0]['content']['parts'][0]['text'],
-                'tokens_used' => $tokens,
-                'model'       => $model,
-                'provider'    => 'gemini',
-            );
+        if ( isset( $response['candidates'][0]['content']['parts'] ) && is_array( $response['candidates'][0]['content']['parts'] ) ) {
+            $text = '';
+            foreach ( $response['candidates'][0]['content']['parts'] as $part ) {
+                if ( isset( $part['text'] ) ) {
+                    $text .= $part['text'];
+                }
+            }
+
+            if ( ! empty( $text ) ) {
+                return array(
+                    'content'     => $text,
+                    'tokens_used' => $tokens,
+                    'model'       => $model,
+                    'provider'    => 'gemini',
+                );
+            }
         }
 
         return new WP_Error( 'ba_gemini_error', __( 'Resposta inválida do Gemini.', 'blog-automatico' ) );
@@ -360,12 +376,30 @@ class BA_AI_Connector {
     /**
      * Testa conexão com a API.
      */
-    public function test_connection() {
+    public function test_connection( $provider = null, $api_key = null, $model = null ) {
+        $orig_provider = $this->provider;
+        $orig_api_key  = $this->api_key;
+
+        if ( ! empty( $provider ) ) {
+            $this->provider = $provider;
+        }
+        if ( ! empty( $api_key ) ) {
+            $this->api_key = $api_key;
+        }
+
+        $options = array( 'max_tokens' => 200 );
+        if ( ! empty( $model ) ) {
+            $options['model'] = $model;
+        }
+
         $result = $this->chat_completion(
             'Você é um assistente.',
             'Responda apenas com: "Conexão OK"',
-            array( 'max_tokens' => 20 )
+            $options
         );
+
+        $this->provider = $orig_provider;
+        $this->api_key  = $orig_api_key;
 
         if ( is_wp_error( $result ) ) {
             return $result;
