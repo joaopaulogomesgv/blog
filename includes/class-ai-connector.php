@@ -480,6 +480,356 @@ class BA_AI_Connector {
         );
     }
 
+    /**
+     * Realiza um diagnóstico aprofundado da API para identificar limites de cota,
+     * modelos autorizados e status de autenticação.
+     *
+     * @param string|null $provider Provedor opcional.
+     * @param string|null $api_key  Chave opcional.
+     * @param string|null $model    Modelo opcional.
+     * @return array Resultado do diagnóstico.
+     */
+    public function diagnose_api( $provider = null, $api_key = null, $model = null ) {
+        $p = ! empty( $provider ) ? $provider : $this->provider;
+        $k = ! empty( $api_key ) ? $api_key : $this->settings->get( 'ba_api_key_' . $p );
+        $m = ! empty( $model ) ? $model : $this->settings->get( 'ba_text_model' );
+
+        $provider_name = isset( self::$providers[ $p ]['name'] ) ? self::$providers[ $p ]['name'] : ucfirst( $p );
+
+        if ( empty( $k ) ) {
+            return array(
+                'success'       => false,
+                'provider'      => $p,
+                'provider_name' => $provider_name,
+                'auth_status'   => 'missing',
+                'quota_status'  => 'error',
+                'title'         => __( 'Chave de API não informada', 'blog-automatico' ),
+                'message'       => sprintf( __( 'Nenhuma chave de API configurada para %s. Insira sua chave nas Configurações.', 'blog-automatico' ), $provider_name ),
+                'models'        => array(),
+                'raw'           => null,
+            );
+        }
+
+        $masked_key = ( strlen( $k ) > 8 ) ? substr( $k, 0, 4 ) . '...' . substr( $k, -4 ) : '***';
+
+        if ( 'gemini' === $p ) {
+            return $this->diagnose_gemini( $k, $m, $masked_key );
+        } else {
+            return $this->diagnose_openai_compatible( $p, $k, $m, $masked_key );
+        }
+    }
+
+    /**
+     * Diagnóstico específico para o Google Gemini.
+     */
+    private function diagnose_gemini( $api_key, $model, $masked_key ) {
+        $start_time = microtime( true );
+        $base_url   = self::$providers['gemini']['base_url'];
+
+        // Passo 1: Listar modelos disponíveis para a chave
+        $models_url = $base_url . '/models?key=' . $api_key;
+        $response   = wp_remote_get( $models_url, array( 'timeout' => 30 ) );
+        $latency_ms = round( ( microtime( true ) - $start_time ) * 1000 );
+
+        if ( is_wp_error( $response ) ) {
+            return array(
+                'success'       => false,
+                'provider'      => 'gemini',
+                'provider_name' => 'Google Gemini',
+                'api_key'       => $masked_key,
+                'auth_status'   => 'network_error',
+                'quota_status'  => 'unknown',
+                'latency_ms'    => $latency_ms,
+                'title'         => __( 'Erro de Conexão com os Servidores do Google', 'blog-automatico' ),
+                'message'       => $response->get_error_message(),
+                'models'        => array(),
+                'raw'           => null,
+            );
+        }
+
+        $code = wp_remote_retrieve_response_code( $response );
+        $body = wp_remote_retrieve_body( $response );
+        $data = json_decode( $body, true );
+
+        // Chave inválida ou não autorizada
+        if ( 200 !== $code ) {
+            $err_msg = isset( $data['error']['message'] ) ? $data['error']['message'] : sprintf( 'HTTP %d', $code );
+            return array(
+                'success'       => false,
+                'provider'      => 'gemini',
+                'provider_name' => 'Google Gemini',
+                'api_key'       => $masked_key,
+                'auth_status'   => 'invalid',
+                'quota_status'  => 'blocked',
+                'latency_ms'    => $latency_ms,
+                'title'         => __( 'Chave de API Inválida ou Rejeitada pelo Google', 'blog-automatico' ),
+                'message'       => $err_msg,
+                'models'        => array(),
+                'raw'           => $data,
+            );
+        }
+
+        // Extrair modelos autorizados
+        $available_models = array();
+        if ( isset( $data['models'] ) && is_array( $data['models'] ) ) {
+            foreach ( $data['models'] as $mod ) {
+                if ( isset( $mod['name'] ) ) {
+                    $m_id = str_replace( 'models/', '', $mod['name'] );
+                    $disp = isset( $mod['displayName'] ) ? $mod['displayName'] : $m_id;
+                    $methods = isset( $mod['supportedGenerationMethods'] ) ? $mod['supportedGenerationMethods'] : array();
+                    if ( in_array( 'generateContent', $methods, true ) ) {
+                        $available_models[] = array(
+                            'id'   => $m_id,
+                            'name' => $disp,
+                        );
+                    }
+                }
+            }
+        }
+
+        // Passo 2: Micro-teste de geração de conteúdo para verificar cota/limite
+        $test_model = ! empty( $model ) ? $model : 'gemini-3.8-flash';
+        $gen_url    = $base_url . '/models/' . $test_model . ':generateContent?key=' . $api_key;
+        $test_body  = array(
+            'contents' => array(
+                array( 'parts' => array( array( 'text' => 'ping' ) ) ),
+            ),
+            'generationConfig' => array( 'maxOutputTokens' => 5 ),
+        );
+
+        $gen_start    = microtime( true );
+        $gen_response = wp_remote_post( $gen_url, array(
+            'timeout' => 30,
+            'headers' => array( 'Content-Type' => 'application/json' ),
+            'body'    => wp_json_encode( $test_body ),
+        ) );
+        $gen_latency = round( ( microtime( true ) - $gen_start ) * 1000 );
+
+        if ( is_wp_error( $gen_response ) ) {
+            return array(
+                'success'       => false,
+                'provider'      => 'gemini',
+                'provider_name' => 'Google Gemini',
+                'api_key'       => $masked_key,
+                'auth_status'   => 'valid',
+                'quota_status'  => 'error',
+                'latency_ms'    => $gen_latency,
+                'tested_model'  => $test_model,
+                'title'         => __( 'Chave Válida, mas Falhou na Geração', 'blog-automatico' ),
+                'message'       => $gen_response->get_error_message(),
+                'models'        => $available_models,
+                'raw'           => null,
+            );
+        }
+
+        $gen_code = wp_remote_retrieve_response_code( $gen_response );
+        $gen_body = wp_remote_retrieve_body( $gen_response );
+        $gen_data = json_decode( $gen_body, true );
+
+        // Se 200 OK: Cota 100% liberada e ativa!
+        if ( 200 === $gen_code ) {
+            return array(
+                'success'       => true,
+                'provider'      => 'gemini',
+                'provider_name' => 'Google Gemini',
+                'api_key'       => $masked_key,
+                'auth_status'   => 'valid',
+                'quota_status'  => 'ok',
+                'latency_ms'    => $gen_latency,
+                'tested_model'  => $test_model,
+                'title'         => __( 'API Operacional e com Cota Liberada! ✅', 'blog-automatico' ),
+                'message'       => sprintf(
+                    __( 'Sua chave de API está 100%% funcional no Google AI Studio. O modelo "%s" respondeu com sucesso em %dms.', 'blog-automatico' ),
+                    $test_model,
+                    $gen_latency
+                ),
+                'models'        => $available_models,
+                'raw'           => $gen_data,
+            );
+        }
+
+        // Se 429: Limite ou cota esgotada
+        $error_detail = isset( $gen_data['error']['message'] ) ? $gen_data['error']['message'] : '';
+        $is_limit_zero = ( stripos( $error_detail, 'limit: 0' ) !== false );
+
+        $wait_time = null;
+        if ( preg_match( '/retry in ([\d\.]+)s/i', $error_detail, $m_retry ) ) {
+            $wait_time = ceil( floatval( $m_retry[1] ) );
+        }
+
+        if ( $is_limit_zero ) {
+            $status_type = 'zero_quota';
+            $title       = __( 'Cota ZERO no Google Cloud (limit: 0)', 'blog-automatico' );
+            $user_advice = __( 'A sua chave de API é autêntica e válida, mas o Google AI Studio atribuiu limite 0 para este projeto. O Google exige que o projeto tenha cota liberada ou faturamento ativo (mesmo para o free tier). Recomendação: crie uma nova chave em aistudio.google.com/app/apikey escolhendo "Create in new project" ou utilize OpenAI / DeepSeek.', 'blog-automatico' );
+        } else {
+            $status_type = 'rate_limited';
+            $title       = __( 'Limite de Taxa por Minuto Atingido (Rate Limit)', 'blog-automatico' );
+            $user_advice = sprintf(
+                __( 'A cota por minuto (RPM) desta chave está em pausa temporária pelo Google. O Google solicita aguardar cerca de %s segundos antes de enviar novas requisições.', 'blog-automatico' ),
+                $wait_time ? $wait_time : '30'
+            );
+        }
+
+        return array(
+            'success'       => false,
+            'provider'      => 'gemini',
+            'provider_name' => 'Google Gemini',
+            'api_key'       => $masked_key,
+            'auth_status'   => 'valid',
+            'quota_status'  => $status_type,
+            'latency_ms'    => $gen_latency,
+            'tested_model'  => $test_model,
+            'wait_seconds'  => $wait_time,
+            'title'         => $title,
+            'message'       => $user_advice,
+            'models'        => $available_models,
+            'raw'           => $gen_data,
+        );
+    }
+
+    /**
+     * Diagnóstico para provedores padrão OpenAI / Grok / DeepSeek.
+     */
+    private function diagnose_openai_compatible( $provider, $api_key, $model, $masked_key ) {
+        $start_time    = microtime( true );
+        $provider_info = self::$providers[ $provider ];
+        $base_url      = $provider_info['base_url'];
+
+        // Passo 1: Listar modelos
+        $models_url = $base_url . '/models';
+        $response   = wp_remote_get( $models_url, array(
+            'timeout' => 30,
+            'headers' => array(
+                'Authorization' => 'Bearer ' . $api_key,
+            ),
+        ) );
+        $latency_ms = round( ( microtime( true ) - $start_time ) * 1000 );
+
+        if ( is_wp_error( $response ) ) {
+            return array(
+                'success'       => false,
+                'provider'      => $provider,
+                'provider_name' => $provider_info['name'],
+                'api_key'       => $masked_key,
+                'auth_status'   => 'network_error',
+                'quota_status'  => 'unknown',
+                'latency_ms'    => $latency_ms,
+                'title'         => __( 'Erro de Conexão com a API', 'blog-automatico' ),
+                'message'       => $response->get_error_message(),
+                'models'        => array(),
+                'raw'           => null,
+            );
+        }
+
+        $code = wp_remote_retrieve_response_code( $response );
+        $body = wp_remote_retrieve_body( $response );
+        $data = json_decode( $body, true );
+
+        if ( 200 !== $code ) {
+            $err_msg = isset( $data['error']['message'] ) ? $data['error']['message'] : sprintf( 'HTTP %d', $code );
+            return array(
+                'success'       => false,
+                'provider'      => $provider,
+                'provider_name' => $provider_info['name'],
+                'api_key'       => $masked_key,
+                'auth_status'   => 'invalid',
+                'quota_status'  => ( 429 === $code ) ? 'limited' : 'blocked',
+                'latency_ms'    => $latency_ms,
+                'title'         => ( 429 === $code ) ? __( 'Cota Esgotada / Saldo Insuficiente', 'blog-automatico' ) : __( 'Chave Inválida', 'blog-automatico' ),
+                'message'       => $err_msg,
+                'models'        => array(),
+                'raw'           => $data,
+            );
+        }
+
+        $available_models = array();
+        if ( isset( $data['data'] ) && is_array( $data['data'] ) ) {
+            foreach ( $data['data'] as $mod ) {
+                if ( isset( $mod['id'] ) ) {
+                    $available_models[] = array(
+                        'id'   => $mod['id'],
+                        'name' => $mod['id'],
+                    );
+                }
+            }
+        }
+
+        // Micro-teste de completion
+        $test_model = ! empty( $model ) ? $model : key( $provider_info['models'] );
+        $comp_start = microtime( true );
+        $comp_resp  = wp_remote_post( $base_url . '/chat/completions', array(
+            'timeout' => 30,
+            'headers' => array(
+                'Content-Type'  => 'application/json',
+                'Authorization' => 'Bearer ' . $api_key,
+            ),
+            'body'    => wp_json_encode( array(
+                'model'      => $test_model,
+                'messages'   => array( array( 'role' => 'user', 'content' => 'ping' ) ),
+                'max_tokens' => 5,
+            ) ),
+        ) );
+        $comp_latency = round( ( microtime( true ) - $comp_start ) * 1000 );
+
+        if ( is_wp_error( $comp_resp ) ) {
+            return array(
+                'success'       => false,
+                'provider'      => $provider,
+                'provider_name' => $provider_info['name'],
+                'api_key'       => $masked_key,
+                'auth_status'   => 'valid',
+                'quota_status'  => 'error',
+                'latency_ms'    => $comp_latency,
+                'tested_model'  => $test_model,
+                'title'         => __( 'Autenticado, mas Falhou no Envio', 'blog-automatico' ),
+                'message'       => $comp_resp->get_error_message(),
+                'models'        => $available_models,
+                'raw'           => null,
+            );
+        }
+
+        $comp_code = wp_remote_retrieve_response_code( $comp_resp );
+        $comp_body = wp_remote_retrieve_body( $comp_resp );
+        $comp_data = json_decode( $comp_body, true );
+
+        if ( 200 === $comp_code ) {
+            return array(
+                'success'       => true,
+                'provider'      => $provider,
+                'provider_name' => $provider_info['name'],
+                'api_key'       => $masked_key,
+                'auth_status'   => 'valid',
+                'quota_status'  => 'ok',
+                'latency_ms'    => $comp_latency,
+                'tested_model'  => $test_model,
+                'title'         => __( 'API Operacional e com Saldo/Cota Ativa! ✅', 'blog-automatico' ),
+                'message'       => sprintf(
+                    __( 'A chave está perfeitamente funcional. O modelo "%s" respondeu em %dms.', 'blog-automatico' ),
+                    $test_model,
+                    $comp_latency
+                ),
+                'models'        => $available_models,
+                'raw'           => $comp_data,
+            );
+        }
+
+        $err_msg = isset( $comp_data['error']['message'] ) ? $comp_data['error']['message'] : sprintf( 'HTTP %d', $comp_code );
+        return array(
+            'success'       => false,
+            'provider'      => $provider,
+            'provider_name' => $provider_info['name'],
+            'api_key'       => $masked_key,
+            'auth_status'   => 'valid',
+            'quota_status'  => ( 429 === $comp_code ) ? 'limited' : 'error',
+            'latency_ms'    => $comp_latency,
+            'tested_model'  => $test_model,
+            'title'         => ( 429 === $comp_code ) ? __( 'Limite de Cota / Saldo Insuficiente', 'blog-automatico' ) : __( 'Falha na Chamada da API', 'blog-automatico' ),
+            'message'       => $err_msg,
+            'models'        => $available_models,
+            'raw'           => $comp_data,
+        );
+    }
+
     public function get_total_tokens_used() {
         return $this->total_tokens_used;
     }
@@ -488,3 +838,4 @@ class BA_AI_Connector {
         $this->total_tokens_used = 0;
     }
 }
+

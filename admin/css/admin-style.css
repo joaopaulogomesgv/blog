@@ -1118,3 +1118,154 @@ div.ba-alert-success .dashicons,
     .ba-stats { grid-template-columns: 1fr; }
     .ba-action-row { flex-direction: column; align-items: stretch; }
 }
+
+/* ==========================================================================
+   Diagnóstico de Limites e Cota da API (v1.3.7)
+   ========================================================================== */
+.ba-diagnostic-box {
+    background: #181818 !important;
+    border: 1px solid #333333 !important;
+    border-radius: 8px !important;
+    padding: 22px 24px !important;
+    margin-top: 20px !important;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.3) !important;
+    color: #e2e8f0 !important;
+}
+
+.ba-diag-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.ba-diag-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.ba-diag-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.ba-diag-badge.ok {
+    background: rgba(180, 212, 67, 0.15);
+    color: #B4D443;
+    border: 1px solid #B4D443;
+}
+
+.ba-diag-badge.limited,
+.ba-diag-badge.rate_limited {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+    border: 1px solid #f59e0b;
+}
+
+.ba-diag-badge.zero_quota,
+.ba-diag-badge.blocked,
+.ba-diag-badge.invalid {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    border: 1px solid #ef4444;
+}
+
+.ba-diag-meta {
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+.ba-diag-body {
+    padding-top: 18px;
+}
+
+.ba-diag-headline {
+    font-size: 16px;
+    font-weight: 700;
+    margin: 0 0 8px 0;
+    color: #ffffff;
+}
+
+.ba-diag-text {
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: #cbd5e1;
+    margin-bottom: 16px;
+}
+
+.ba-diag-models-title {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+    color: #94a3b8;
+    margin-bottom: 8px;
+}
+
+.ba-diag-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.ba-diag-chip {
+    background: #242424;
+    border: 1px solid #3d3d3d;
+    color: #e2e8f0;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11.5px;
+    font-family: monospace;
+}
+
+.ba-diag-chip.active-model {
+    border-color: #B4D443;
+    color: #B4D443;
+    font-weight: 600;
+}
+
+.ba-diag-raw {
+    margin-top: 14px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    padding-top: 12px;
+}
+
+.ba-toggle-raw-json {
+    font-size: 12px;
+    color: #94a3b8;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.ba-toggle-raw-json:hover {
+    color: #ffffff;
+}
+
+.ba-raw-json-content {
+    display: none;
+    margin-top: 10px;
+    background: #0f0f0f;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+    padding: 12px;
+    font-size: 11px;
+    font-family: monospace;
+    color: #a5f3fc;
+    max-height: 250px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+

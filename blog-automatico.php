@@ -3,7 +3,7 @@
  * Plugin Name: Blog Automático com IA
  * Plugin URI: https://github.com/seu-usuario/blog-automatico
  * Description: Cria posts de blog automaticamente usando Inteligência Artificial com templates Elementor Pro e otimização SEO. Suporta OpenAI, Gemini, Grok e DeepSeek.
- * Version: 1.3.6
+ * Version: 1.3.7
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Author: Blog Automático
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-define( 'BA_VERSION', '1.3.6' );
+define( 'BA_VERSION', '1.3.7' );
 define( 'BA_PLUGIN_FILE', __FILE__ );
 define( 'BA_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'BA_PLUGIN_URL', plugin_dir_url( __FILE__ ) );

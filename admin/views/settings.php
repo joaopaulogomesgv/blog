@@ -289,14 +289,23 @@ $categories      = get_categories( array( 'hide_empty' => false ) );
                     </div>
                 </div>
 
-                <!-- Botão Testar Conexão -->
-                <div style="margin-top: 18px; margin-bottom: 24px;">
+                <!-- Botões Testar Conexão e Analisar Limites da API -->
+                <div style="margin-top: 18px; margin-bottom: 24px; display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
                     <button type="button" id="ba-test-connection" class="ba-btn ba-btn-secondary ba-btn-sm">
                         <span class="ba-spinner"></span>
                         <span class="dashicons dashicons-admin-plugins"></span>
                         <span class="ba-btn-text"><?php esc_html_e( 'Testar Conexão com Provedor Ativo', 'blog-automatico' ); ?></span>
                     </button>
+
+                    <button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-btn-diagnose" title="<?php esc_attr_e( 'Consulta quotas, permissões e modelos disponíveis na API', 'blog-automatico' ); ?>">
+                        <span class="ba-spinner"></span>
+                        <span class="dashicons dashicons-chart-bar"></span>
+                        <span class="ba-btn-text"><?php esc_html_e( 'Analisar Limites & Cota da API', 'blog-automatico' ); ?></span>
+                    </button>
                 </div>
+
+                <!-- Container de Relatório de Diagnóstico de Limites da API -->
+                <div id="ba-settings-diagnostic-report" class="ba-diagnostic-box" style="display:none; margin-bottom: 24px;"></div>
 
                 <hr style="border:0; border-top:1px solid rgba(255,255,255,0.08); margin: 24px 0;">
 

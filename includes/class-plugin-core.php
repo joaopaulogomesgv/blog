@@ -66,6 +66,7 @@ class BA_Plugin_Core {
             add_action( 'wp_ajax_ba_get_provider_models', array( $this, 'ajax_get_provider_models' ) );
             add_action( 'wp_ajax_ba_delete_log', array( $this, 'ajax_delete_log' ) );
             add_action( 'wp_ajax_ba_clear_logs', array( $this, 'ajax_clear_logs' ) );
+            add_action( 'wp_ajax_ba_diagnose_api', array( $this, 'ajax_diagnose_api' ) );
         }
 
         add_action( 'wp_head', array( $this, 'output_schema_markup' ) );
@@ -299,6 +300,23 @@ class BA_Plugin_Core {
         $logger->clear_logs( $status );
 
         wp_send_json_success( array( 'message' => __( 'Histórico limpo com sucesso.', 'blog-automatico' ) ) );
+    }
+
+    public function ajax_diagnose_api() {
+        check_ajax_referer( 'ba_admin_nonce', 'nonce' );
+
+        if ( ! current_user_can( 'edit_posts' ) ) {
+            wp_send_json_error( array( 'message' => __( 'Sem permissão.', 'blog-automatico' ) ) );
+        }
+
+        $provider = isset( $_POST['provider'] ) ? sanitize_text_field( wp_unslash( $_POST['provider'] ) ) : null;
+        $api_key  = isset( $_POST['api_key'] ) ? sanitize_text_field( wp_unslash( $_POST['api_key'] ) ) : null;
+        $model    = isset( $_POST['model'] ) ? sanitize_text_field( wp_unslash( $_POST['model'] ) ) : null;
+
+        $ai     = BA_AI_Connector::get_instance();
+        $result = $ai->diagnose_api( $provider, $api_key, $model );
+
+        wp_send_json_success( $result );
     }
 
     public function output_schema_markup() {

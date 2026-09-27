@@ -16,6 +16,7 @@
             this.bindProviderSelect();
             this.bindRangeSlider();
             this.bindApiKeyToggle();
+            this.bindDiagnoseApi();
         },
 
         /**
@@ -137,9 +138,18 @@
                 if (data.post_url) {
                     $result.find('.ba-link-view').attr('href', data.post_url).show();
                 }
-            } else {
                 $result.find('.ba-result-icon').html('<span class="dashicons dashicons-dismiss" style="font-size:32px;width:32px;height:32px;color:#ef4444;"></span>');
-                $result.find('.ba-result-title').html('<div style="color:#ffffff; font-weight:600; font-size:15px; margin-bottom:6px;">Falha na geração do artigo:</div><div style="color:#fca5a5; font-size:13.5px; line-height:1.5;">' + (data.message || baAdmin.strings.error) + '</div>');
+                $result.find('.ba-result-title').html(
+                    '<div style="color:#ffffff; font-weight:600; font-size:15px; margin-bottom:6px;">Falha na geração do artigo:</div>' +
+                    '<div style="color:#fca5a5; font-size:13.5px; line-height:1.5;">' + (data.message || baAdmin.strings.error) + '</div>' +
+                    '<div style="margin-top:12px;">' +
+                        '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-btn-diagnose" style="background:rgba(239,68,68,0.2) !important; border:1px solid #ef4444 !important; color:#ffffff !important; cursor:pointer;">' +
+                            '<span class="ba-spinner"></span>' +
+                            '<span class="dashicons dashicons-chart-bar" style="margin-right:4px;"></span>' +
+                            '<span class="ba-btn-text">Analisar Cota & Limites da API Agora</span>' +
+                        '</button>' +
+                    '</div>'
+                );
                 $result.find('.ba-result-meta').hide();
                 $result.find('.ba-link-edit, .ba-link-view').hide();
             }
@@ -482,6 +492,133 @@
                     }
                 });
             });
+        },
+
+        /**
+         * Diagnóstico completo de Limites e Cota da API
+         */
+        bindDiagnoseApi: function () {
+            $(document).on('click', '.ba-btn-diagnose', function (e) {
+                e.preventDefault();
+                const $btn = $(this);
+                const isSettings = $btn.closest('#ba-settings-form').length > 0;
+                const $report = isSettings ? $('#ba-settings-diagnostic-report') : $('#ba-diagnostic-report');
+
+                $btn.addClass('loading').prop('disabled', true);
+                $btn.find('.ba-btn-text').text('Consultando API & Limites...');
+
+                let provider = 'gemini';
+                let apiKey = '';
+                let model = '';
+
+                if (isSettings) {
+                    provider = $('#ba_ai_provider').val() || 'gemini';
+                    apiKey = $('#ba_api_key_' + provider).val() || '';
+                    model = $('#ba_text_model').val() || '';
+                } else {
+                    // Na tela de Novo Post, podemos pegar das configurações salvas
+                    provider = $('#ba_ai_provider').val() || '';
+                    apiKey = '';
+                    model = $('#ba-tone').val() ? '' : '';
+                }
+
+                $report.slideUp(200);
+
+                $.ajax({
+                    url: baAdmin.ajaxUrl,
+                    type: 'POST',
+                    data: {
+                        action: 'ba_diagnose_api',
+                        nonce: baAdmin.nonce,
+                        provider: provider,
+                        api_key: apiKey,
+                        model: model
+                    },
+                    success: function (response) {
+                        if (response.success && response.data) {
+                            BA.renderDiagnosticReport($report, response.data);
+                        } else {
+                            const err = (response.data && response.data.message) ? response.data.message : 'Falha ao executar diagnóstico.';
+                            BA.showNotice('error', err);
+                        }
+                    },
+                    error: function () {
+                        BA.showNotice('error', 'Erro ao conectar ao servidor WordPress.');
+                    },
+                    complete: function () {
+                        $btn.removeClass('loading').prop('disabled', false);
+                        $btn.find('.ba-btn-text').text(isSettings ? 'Analisar Limites & Cota da API' : 'Analisar Limites da API');
+                    }
+                });
+            });
+
+            // Toggle para ver retorno JSON bruto da API
+            $(document).on('click', '.ba-toggle-raw-json', function (e) {
+                e.preventDefault();
+                const $raw = $(this).siblings('.ba-raw-json-content');
+                $raw.slideToggle(200);
+            });
+        },
+
+        /**
+         * Renderiza o relatório visual do diagnóstico
+         */
+        renderDiagnosticReport: function ($container, data) {
+            let badgeClass = 'ok';
+            let badgeText = 'Cota Liberada';
+
+            if (data.quota_status === 'zero_quota') {
+                badgeClass = 'zero_quota';
+                badgeText = 'Cota ZERO (limit: 0)';
+            } else if (data.quota_status === 'rate_limited' || data.quota_status === 'limited') {
+                badgeClass = 'rate_limited';
+                badgeText = 'Limite Atingido';
+            } else if (data.quota_status === 'blocked' || data.auth_status === 'invalid') {
+                badgeClass = 'invalid';
+                badgeText = 'Chave Inválida / Bloqueada';
+            }
+
+            let modelsHtml = '';
+            if (data.models && data.models.length > 0) {
+                modelsHtml += '<div class="ba-diag-models-title">Modelos Disponíveis no seu Projeto (' + data.models.length + '):</div>';
+                modelsHtml += '<div class="ba-diag-chips">';
+                data.models.forEach(function (m) {
+                    const isTested = (data.tested_model && m.id === data.tested_model);
+                    modelsHtml += '<span class="ba-diag-chip ' + (isTested ? 'active-model' : '') + '">' + m.id + '</span>';
+                });
+                modelsHtml += '</div>';
+            }
+
+            let rawHtml = '';
+            if (data.raw) {
+                rawHtml = '<div class="ba-diag-raw">' +
+                    '<a href="#" class="ba-toggle-raw-json">🔍 Ver Retorno Técnico Original da API (JSON) ▾</a>' +
+                    '<pre class="ba-raw-json-content">' + $('<div>').text(JSON.stringify(data.raw, null, 2)).html() + '</pre>' +
+                    '</div>';
+            }
+
+            const html = '' +
+                '<div class="ba-diag-header">' +
+                    '<div class="ba-diag-title-wrap">' +
+                        '<span class="ba-diag-badge ' + badgeClass + '">' + badgeText + '</span>' +
+                        '<strong>' + (data.provider_name || 'IA') + '</strong>' +
+                    '</div>' +
+                    '<div class="ba-diag-meta">' +
+                        '<span>Chave: <code>' + (data.api_key || '***') + '</code></span>' +
+                        '<span>Latência: <strong>' + (data.latency_ms || 0) + 'ms</strong></span>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="ba-diag-body">' +
+                    '<h4 class="ba-diag-headline">' + (data.title || 'Resultado do Diagnóstico') + '</h4>' +
+                    '<p class="ba-diag-text">' + (data.message || '') + '</p>' +
+                    modelsHtml +
+                    rawHtml +
+                '</div>';
+
+            $container.html(html).slideDown(300);
+            $('html, body').animate({
+                scrollTop: $container.offset().top - 80
+            }, 400);
         },
 
         /**

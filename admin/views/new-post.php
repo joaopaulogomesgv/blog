@@ -142,11 +142,17 @@ $has_key         = $settings->has_api_key();
             </div>
 
             <!-- Rodapé de Ação -->
-            <div class="ba-action-row">
+            <div class="ba-action-row" style="display:flex; flex-wrap:wrap; gap:14px; align-items:center;">
                 <button type="submit" class="ba-btn ba-btn-primary ba-btn-lg ba-btn-generate" <?php disabled( ! $has_key ); ?>>
                     <span class="ba-spinner"></span>
                     <span class="dashicons dashicons-admin-generic"></span>
                     <span class="ba-btn-text"><?php esc_html_e( 'Gerar Post Completo Agora', 'blog-automatico' ); ?></span>
+                </button>
+
+                <button type="button" class="ba-btn ba-btn-secondary ba-btn-lg ba-btn-diagnose" title="<?php esc_attr_e( 'Analisa se a sua chave de API possui cota disponível, modelos liberados ou bloqueios', 'blog-automatico' ); ?>">
+                    <span class="ba-spinner"></span>
+                    <span class="dashicons dashicons-chart-bar"></span>
+                    <span class="ba-btn-text"><?php esc_html_e( 'Analisar Limites da API', 'blog-automatico' ); ?></span>
                 </button>
 
                 <div class="ba-eta-info">
@@ -156,6 +162,9 @@ $has_key         = $settings->has_api_key();
             </div>
         </form>
     </div>
+
+    <!-- Container de Relatório de Diagnóstico de Limites da API -->
+    <div id="ba-diagnostic-report" class="ba-diagnostic-box" style="display:none;"></div>
 
     <!-- Barra de Progresso Real/Animada -->
     <div id="ba-progress" class="ba-progress-wrap">
