@@ -36,6 +36,8 @@ class BA_AI_Connector {
             'models'   => array(
                 'gemini-3.8-flash'    => 'Gemini 3.8 Flash (Recomendado / Cota Gratuita)',
                 'gemini-flash-latest' => 'Gemini Flash Latest (Cota Gratuita)',
+                'gemini-2.5-flash'    => 'Gemini 2.5 Flash (Cota Gratuita)',
+                'gemini-3.5-flash'    => 'Gemini 3.5 Flash (Cota Gratuita)',
             ),
             'image_models'     => array(),
             'supports_images'  => false,
@@ -191,6 +193,8 @@ class BA_AI_Connector {
         $fallback_pool = array(
             'gemini-3.8-flash',
             'gemini-flash-latest',
+            'gemini-2.5-flash',
+            'gemini-3.5-flash',
         );
 
         foreach ( $fallback_pool as $fb_m ) {
@@ -588,46 +592,52 @@ class BA_AI_Connector {
         }
 
         // Passo 2: Micro-teste de geração de conteúdo para verificar cota/limite
-        $test_model = ! empty( $model ) ? $model : 'gemini-3.8-flash';
-        $gen_url    = $base_url . '/models/' . $test_model . ':generateContent?key=' . $api_key;
-        $test_body  = array(
-            'contents' => array(
-                array( 'parts' => array( array( 'text' => 'ping' ) ) ),
-            ),
-            'generationConfig' => array( 'maxOutputTokens' => 5 ),
-        );
+        // Testa o modelo selecionado e outros modelos estáveis para encontrar qual tem cota ativa
+        $test_models_pool = array_unique( array_filter( array(
+            $model,
+            'gemini-2.5-flash',
+            'gemini-flash-latest',
+            'gemini-3.5-flash',
+            'gemini-3.8-flash',
+        ) ) );
 
-        $gen_start    = microtime( true );
-        $gen_response = wp_remote_post( $gen_url, array(
-            'timeout' => 30,
-            'headers' => array( 'Content-Type' => 'application/json' ),
-            'body'    => wp_json_encode( $test_body ),
-        ) );
-        $gen_latency = round( ( microtime( true ) - $gen_start ) * 1000 );
+        $working_model = null;
+        $last_gen_response = null;
+        $last_gen_code = null;
+        $last_gen_data = null;
+        $gen_latency = 0;
 
-        if ( is_wp_error( $gen_response ) ) {
-            return array(
-                'success'       => false,
-                'provider'      => 'gemini',
-                'provider_name' => 'Google Gemini',
-                'api_key'       => $masked_key,
-                'auth_status'   => 'valid',
-                'quota_status'  => 'error',
-                'latency_ms'    => $gen_latency,
-                'tested_model'  => $test_model,
-                'title'         => __( 'Chave Válida, mas Falhou na Geração', 'blog-automatico' ),
-                'message'       => $gen_response->get_error_message(),
-                'models'        => $available_models,
-                'raw'           => null,
+        foreach ( $test_models_pool as $m_candidate ) {
+            $gen_url   = $base_url . '/models/' . $m_candidate . ':generateContent?key=' . $api_key;
+            $test_body = array(
+                'contents' => array(
+                    array( 'parts' => array( array( 'text' => 'ping' ) ) ),
+                ),
+                'generationConfig' => array( 'maxOutputTokens' => 5 ),
             );
+
+            $gen_start    = microtime( true );
+            $gen_response = wp_remote_post( $gen_url, array(
+                'timeout' => 20,
+                'headers' => array( 'Content-Type' => 'application/json' ),
+                'body'    => wp_json_encode( $test_body ),
+            ) );
+            $gen_latency = round( ( microtime( true ) - $gen_start ) * 1000 );
+
+            if ( ! is_wp_error( $gen_response ) ) {
+                $last_gen_code = wp_remote_retrieve_response_code( $gen_response );
+                $last_gen_body = wp_remote_retrieve_body( $gen_response );
+                $last_gen_data = json_decode( $last_gen_body, true );
+
+                if ( 200 === $last_gen_code ) {
+                    $working_model = $m_candidate;
+                    break;
+                }
+            }
         }
 
-        $gen_code = wp_remote_retrieve_response_code( $gen_response );
-        $gen_body = wp_remote_retrieve_body( $gen_response );
-        $gen_data = json_decode( $gen_body, true );
-
-        // Se 200 OK: Cota 100% liberada e ativa!
-        if ( 200 === $gen_code ) {
+        // Se encontrou algum modelo com cota liberada!
+        if ( ! empty( $working_model ) ) {
             return array(
                 'success'       => true,
                 'provider'      => 'gemini',
@@ -636,39 +646,24 @@ class BA_AI_Connector {
                 'auth_status'   => 'valid',
                 'quota_status'  => 'ok',
                 'latency_ms'    => $gen_latency,
-                'tested_model'  => $test_model,
+                'tested_model'  => $working_model,
                 'title'         => __( 'API Operacional e com Cota Liberada! ✅', 'blog-automatico' ),
                 'message'       => sprintf(
-                    __( 'Sua chave de API está 100%% funcional no Google AI Studio. O modelo "%s" respondeu com sucesso em %dms.', 'blog-automatico' ),
-                    $test_model,
+                    __( 'Sua chave de API está funcional no Google AI Studio. O modelo "%s" respondeu com sucesso em %dms.', 'blog-automatico' ),
+                    $working_model,
                     $gen_latency
                 ),
                 'models'        => $available_models,
-                'raw'           => $gen_data,
+                'raw'           => $last_gen_data,
             );
         }
 
-        // Se 429: Limite ou cota esgotada
-        $error_detail = isset( $gen_data['error']['message'] ) ? $gen_data['error']['message'] : '';
+        // Se todos os modelos retornaram erro de cota (RESOURCE_EXHAUSTED)
+        $error_detail = isset( $last_gen_data['error']['message'] ) ? $last_gen_data['error']['message'] : '';
         $is_limit_zero = ( stripos( $error_detail, 'limit: 0' ) !== false );
 
-        $wait_time = null;
-        if ( preg_match( '/retry in ([\d\.]+)s/i', $error_detail, $m_retry ) ) {
-            $wait_time = ceil( floatval( $m_retry[1] ) );
-        }
-
-        if ( $is_limit_zero ) {
-            $status_type = 'zero_quota';
-            $title       = __( 'Cota ZERO no Google Cloud (limit: 0)', 'blog-automatico' );
-            $user_advice = __( 'A sua chave de API é autêntica e válida, mas o Google AI Studio atribuiu limite 0 para este projeto. O Google exige que o projeto tenha cota liberada ou faturamento ativo (mesmo para o free tier). Recomendação: crie uma nova chave em aistudio.google.com/app/apikey escolhendo "Create in new project" ou utilize OpenAI / DeepSeek.', 'blog-automatico' );
-        } else {
-            $status_type = 'rate_limited';
-            $title       = __( 'Limite de Taxa por Minuto Atingido (Rate Limit)', 'blog-automatico' );
-            $user_advice = sprintf(
-                __( 'A cota por minuto (RPM) desta chave está em pausa temporária pelo Google. O Google solicita aguardar cerca de %s segundos antes de enviar novas requisições.', 'blog-automatico' ),
-                $wait_time ? $wait_time : '30'
-            );
-        }
+        $title = __( 'Bloqueio Persistente de Projeto no Google Cloud (RESOURCE_EXHAUSTED)', 'blog-automatico' );
+        $user_advice = __( 'Mesmo sem usar a API por minutos, o Google continua recusando chamadas nesta chave. Isso ocorre quando o projeto atual do Google Cloud entra em restrição automática de Free Tier. Solução rápida: acesse aistudio.google.com/app/apikey, clique em "Create API key" e selecione "Create in new project" (Criar em um NOVO projeto). Cole a nova chave aqui para reativar o uso instantaneamente.', 'blog-automatico' );
 
         return array(
             'success'       => false,
@@ -676,14 +671,13 @@ class BA_AI_Connector {
             'provider_name' => 'Google Gemini',
             'api_key'       => $masked_key,
             'auth_status'   => 'valid',
-            'quota_status'  => $status_type,
+            'quota_status'  => 'zero_quota',
             'latency_ms'    => $gen_latency,
-            'tested_model'  => $test_model,
-            'wait_seconds'  => $wait_time,
+            'tested_model'  => ! empty( $model ) ? $model : 'gemini-3.8-flash',
             'title'         => $title,
             'message'       => $user_advice,
             'models'        => $available_models,
-            'raw'           => $gen_data,
+            'raw'           => $last_gen_data,
         );
     }
 
