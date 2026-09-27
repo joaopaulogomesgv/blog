@@ -85,6 +85,9 @@ class BA_Elementor_Builder {
         // Salvar dados do Elementor no post
         $this->save_elementor_data( $post_id, $elementor_data );
 
+        // Sincronizar post_content com HTML completo para Gutenberg, busca do WP e SEO
+        $this->apply_html_fallback( $post_id, $content, $image_ids );
+
         return true;
     }
 

@@ -4,17 +4,17 @@ Tags: ai, blog, automatic, elementor, seo, openai, gemini, grok, deepseek, conte
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.3.9
+Stable tag: 1.8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Cria posts de blog automaticamente usando IA (OpenAI ChatGPT, Google Gemini, xAI Grok e DeepSeek) com templates Elementor Pro e otimização SEO.
+Cria posts de blog automaticamente usando IA (OpenAI ChatGPT, Google Gemini, Groq Cloud, xAI Grok e DeepSeek) com templates Elementor Pro e otimização SEO.
 
 == Description ==
 
 O **Blog Automático com IA** transforma suas ideias em artigos completos de blog. Você pode colar 100+ ideias de uma vez só e ativar o piloto automático para postar 1 ou 2 artigos por dia sem qualquer intervenção manual!
 
-* Suporte Multi-IA: OpenAI (GPT-4o), Google Gemini (Gemini 3.8 Flash / Pro), xAI (Grok 3) e DeepSeek (Chat / Reasoner)
+* Suporte Multi-IA: OpenAI (GPT-4o), Google Gemini, Groq Cloud (Llama 3.3 70B 100% Grátis), xAI (Grok 3) e DeepSeek (Chat / Reasoner)
 * Fila em Massa: Cole até centenas de temas de uma única vez
 * Piloto Automático: Define 1 ou 2 posts diários com agendamento autônomo e janelas de horário
 * Imagens em Destaque geradas via DALL-E ou Grok Image
@@ -32,6 +32,41 @@ O **Blog Automático com IA** transforma suas ideias em artigos completos de blo
 5. Vá em 'Fila de Conteúdo', cole seus assuntos e ative o Piloto Automático!
 
 == Changelog ==
+
+= 1.8.0 =
+* Implementação nativa de regras de **GEO (Generative Engine Optimization)** no motor de prompts da IA.
+* Artigos otimizados para citação direta por assistentes de IA (ChatGPT Search, Perplexity AI, Google AI Overviews e Copilot) com respostas diretas no início das seções, dados/fatos estatísticos verificáveis e formatação extrativa.
+
+= 1.7.0 =
+* Adição oficial do provedor Groq Cloud (Llama 3.3 70B & DeepSeek R1) com API 100% gratuita, sem exigência de cartão de crédito e velocidade extrema.
+* Reorganização dos modelos do Gemini colocando o Gemini 2.5 Flash como modelo padrão de alta estabilidade e limite estendido de requisições.
+
+= 1.6.0 =
+* Remoção completa da dependência do Elementor Pro para criação dos posts.
+* Salvamento exclusivo no formato nativo do WordPress (Gutenberg), garantindo que 100% do conteúdo gerado (textos, H2/H3, imagens e FAQ) fique visível e editável diretamente na tela de edição do WordPress.
+* Interface simplificada no painel Novo Post IA com foco nas configurações de Tom de Voz, Status e Tamanho.
+
+= 1.4.4 =
+* Correção de sintaxe e restabelecimento do bloco if(is_wp_error) em class-ai-connector.php, eliminando o erro crítico no WordPress durante a atualização do plugin.
+
+= 1.4.3 =
+* Detecção rápida e tratamento de erros de bloqueio permanente de cota no Google Cloud (RESOURCE_EXHAUSTED / limit: 0) evitando timeouts
+* Ajuste no tempo limite de execução do PHP (max_execution_time 300s) e tratamento aprimorado de erros AJAX no painel JS
+
+= 1.4.2 =
+* Sincronização automática do HTML gerado no post_content do banco de dados, garantindo que o texto apareça no editor Gutenberg do WordPress, buscas do WP e feeds RSS mesmo com o Elementor ativo.
+
+= 1.4.1 =
+* Sistema automático de Retry com Exponential Backoff para status HTTP 429 (Rate Limit / High Demand) do Google Gemini
+* Pausa estratégica (2s delay) antes de acionar a transição para modelos fallback durante congestionamento
+* Expansão da lista de modelos Gemini (incluindo Gemini 2.5 Flash, 3.6 Flash, 3.7 Flash) para maior resiliência
+
+= 1.4.0 =
+* Parser e sanitizador JSON resiliente contra respostas do Gemini e outros LLMs
+* Tratamento automático de quebras de linha literais (CR/LF) e tabulações dentro de strings JSON
+* Remoção inteligente de blocos markdown (```json ... ```) e caracteres invisíveis/BOM
+* Auto-reparo de JSONs truncados por limite de tokens e normalização flexível de esquemas/aliases
+* Tratamento detalhado de erros com log da resposta bruta no error_log do PHP
 
 = 1.3.5 =
 * Remoção de modelos Pro sem cota gratuita (limit: 0) do pool de contingência do Gemini

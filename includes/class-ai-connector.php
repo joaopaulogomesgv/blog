@@ -34,10 +34,23 @@ class BA_AI_Connector {
             'name'     => 'Google Gemini',
             'base_url' => 'https://generativelanguage.googleapis.com/v1beta',
             'models'   => array(
-                'gemini-3.8-flash'    => 'Gemini 3.8 Flash (Recomendado / Cota Gratuita)',
-                'gemini-flash-latest' => 'Gemini Flash Latest (Cota Gratuita)',
-                'gemini-2.5-flash'    => 'Gemini 2.5 Flash (Cota Gratuita)',
+                'gemini-2.5-flash'    => 'Gemini 2.5 Flash (Recomendado / Alta Estabilidade)',
+                'gemini-3.8-flash'    => 'Gemini 3.8 Flash (Cota Gratuita)',
+                'gemini-3.6-flash'    => 'Gemini 3.6 Flash (Cota Gratuita)',
+                'gemini-3.7-flash'    => 'Gemini 3.7 Flash (Cota Gratuita)',
                 'gemini-3.5-flash'    => 'Gemini 3.5 Flash (Cota Gratuita)',
+                'gemini-flash-latest' => 'Gemini Flash Latest (Cota Gratuita)',
+            ),
+            'image_models'     => array(),
+            'supports_images'  => false,
+        ),
+        'groq' => array(
+            'name'     => 'Groq Cloud (100% Grátis & Ultra Rápido)',
+            'base_url' => 'https://api.groq.com/openai/v1',
+            'models'   => array(
+                'llama-3.3-70b-versatile'      => 'Llama 3.3 70B (Recomendado / 100% Grátis)',
+                'deepseek-r1-distill-llama-70b' => 'DeepSeek R1 Distill 70B (100% Grátis)',
+                'mixtral-8x7b-32768'           => 'Mixtral 8x7B (100% Grátis)',
             ),
             'image_models'     => array(),
             'supports_images'  => false,
@@ -128,6 +141,7 @@ class BA_AI_Connector {
                 return $this->gemini_completion( $system_prompt, $user_prompt, $options );
             case 'openai':
             case 'grok':
+            case 'groq':
             case 'deepseek':
             default:
                 return $this->openai_compatible_completion( $system_prompt, $user_prompt, $options );
@@ -189,12 +203,14 @@ class BA_AI_Connector {
             $models_to_try[] = $selected_model;
         }
 
-        // Alternativas gratuitas para fallback automático
+        // Alternativas gratuitas para fallback automático em ordem de resiliência
         $fallback_pool = array(
             'gemini-3.8-flash',
-            'gemini-flash-latest',
             'gemini-2.5-flash',
+            'gemini-3.6-flash',
+            'gemini-3.7-flash',
             'gemini-3.5-flash',
+            'gemini-flash-latest',
         );
 
         foreach ( $fallback_pool as $fb_m ) {
@@ -204,7 +220,7 @@ class BA_AI_Connector {
         }
 
         if ( empty( $models_to_try ) ) {
-            $models_to_try = array( 'gemini-3.8-flash' );
+            $models_to_try = array( 'gemini-3.8-flash', 'gemini-2.5-flash' );
         }
 
         $base_url   = self::$providers['gemini']['base_url'];
@@ -241,20 +257,31 @@ class BA_AI_Connector {
                 $err_data   = $response->get_error_data();
                 $status     = ( is_array( $err_data ) && isset( $err_data['status'] ) ) ? intval( $err_data['status'] ) : 0;
 
-                // Se for erro de sobrecarga temporária (503/429), cota zero em modelo anterior, ou modelo descontinuado, tenta o próximo modelo
+                // Se for bloqueio permanente de cota no projeto do Google Cloud (RESOURCE_EXHAUSTED / limit:0), não tenta fallbacks infinitos
+                $is_permanent_quota_block = (
+                    stripos( $err_msg, 'RESOURCE_EXHAUSTED' ) !== false ||
+                    stripos( $err_msg, 'limit: 0' ) !== false ||
+                    stripos( $err_msg, 'quota' ) !== false
+                );
+
+                if ( $is_permanent_quota_block ) {
+                    return $response;
+                }
+
+                // Se for erro de sobrecarga temporária (503), cota zerada em modelo específico anterior, ou modelo descontinuado, tenta o próximo modelo
                 $is_temporary_or_model_error = (
                     503 === $status ||
-                    429 === $status ||
                     404 === $status ||
                     stripos( $err_msg, 'high demand' ) !== false ||
                     stripos( $err_msg, 'overloaded' ) !== false ||
                     stripos( $err_msg, 'no longer available' ) !== false ||
                     stripos( $err_msg, 'not found' ) !== false ||
-                    stripos( $err_msg, 'limit: 0' ) !== false ||
                     stripos( $err_msg, 'deprecated' ) !== false
                 );
 
                 if ( $is_temporary_or_model_error ) {
+                    // Pausa curta de 1 segundo antes de tentar a próxima alternativa
+                    sleep( 1 );
                     continue;
                 }
 
@@ -391,11 +418,18 @@ class BA_AI_Connector {
         $body_raw    = wp_remote_retrieve_body( $response );
         $data        = json_decode( $body_raw, true );
 
-        // Trata apenas sobrecarga temporária dos servidores (503 / 502 / 504)
-        if ( ( 503 === $status_code || 502 === $status_code || 504 === $status_code ) && $retry < 2 ) {
+        $raw_error_str = ( is_array( $data ) && isset( $data['error'] ) ) ? wp_json_encode( $data['error'] ) : $body_raw;
+        $is_permanent_quota = (
+            false !== stripos( $raw_error_str, 'RESOURCE_EXHAUSTED' ) ||
+            false !== stripos( $raw_error_str, 'quota' ) ||
+            false !== stripos( $raw_error_str, 'limit: 0' )
+        );
+
+        // Trata apenas sobrecarga temporária dos servidores (503 / 502 / 504) ou limites momentâneos, DESDE QUE não seja cota bloqueada/zerada no projeto
+        if ( ! $is_permanent_quota && ( 503 === $status_code || 502 === $status_code || 504 === $status_code ) && $retry < 1 ) {
             $retry_after = wp_remote_retrieve_header( $response, 'retry-after' );
-            $wait        = $retry_after ? intval( $retry_after ) : pow( 2, $retry + 1 );
-            sleep( min( $wait, 10 ) );
+            $wait        = $retry_after ? intval( $retry_after ) : 2;
+            sleep( min( max( $wait, 1 ), 3 ) );
             return $this->make_request( $url, $body, $retry + 1, $use_bearer );
         }
 

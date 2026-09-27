@@ -90,26 +90,16 @@ $has_key         = $settings->has_api_key();
                 </div>
             </div>
 
-            <!-- Opções do Post em 4 colunas bem distribuídas -->
-            <div class="ba-options-grid">
+            <!-- Opções do Post em 3 colunas bem distribuídas -->
+            <div class="ba-options-grid" style="grid-template-columns: repeat(3, 1fr);">
+                <input type="hidden" id="ba-template" name="template" value="gutenberg" />
+
                 <div class="ba-form-group">
                     <label for="ba-tone"><?php esc_html_e( 'Tom de Voz', 'blog-automatico' ); ?></label>
                     <select id="ba-tone" name="tone" class="ba-select">
                         <?php foreach ( $settings->get_content_tones() as $val => $lbl ) : ?>
                             <option value="<?php echo esc_attr( $val ); ?>" <?php selected( $settings->get( 'ba_content_tone' ), $val ); ?>>
                                 <?php echo esc_html( $lbl ); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-
-                <div class="ba-form-group">
-                    <label for="ba-template"><?php esc_html_e( 'Template Elementor Pro', 'blog-automatico' ); ?></label>
-                    <select id="ba-template" name="template" class="ba-select">
-                        <option value="default"><?php esc_html_e( 'Padrão (Automático)', 'blog-automatico' ); ?></option>
-                        <?php foreach ( $settings->get_elementor_templates() as $t_key => $t_name ) : ?>
-                            <option value="<?php echo esc_attr( $t_key ); ?>" <?php selected( $settings->get( 'ba_default_template' ), $t_key ); ?>>
-                                <?php echo esc_html( $t_name ); ?>
                             </option>
                         <?php endforeach; ?>
                     </select>

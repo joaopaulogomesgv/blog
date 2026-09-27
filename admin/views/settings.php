@@ -220,6 +220,37 @@ $categories      = get_categories( array( 'hide_empty' => false ) );
                                 value="<?php echo esc_attr( $settings->get( 'ba_api_key_gemini' ) ); ?>"
                                 placeholder="AIzaSy..."
                             />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Aba Groq Cloud -->
+                <div class="ba-provider-content" id="tab-groq" style="<?php echo ( 'groq' === $active_provider ) ? '' : 'display:none;'; ?>">
+                    <div class="ba-key-help-card">
+                        <div class="ba-key-help-info">
+                            <strong><?php esc_html_e( 'Groq Cloud (100% Grátis & Ultra Rápido)', 'blog-automatico' ); ?></strong>
+                            <span><?php esc_html_e( 'A Groq fornece acesso 100% gratuito ao Llama 3.3 70B e DeepSeek R1 em velocidade ultra-rápida sem cartão de crédito.', 'blog-automatico' ); ?></span>
+                        </div>
+                        <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" class="ba-btn-get-key">
+                            <span class="dashicons dashicons-external"></span>
+                            <?php esc_html_e( 'Pegar Chave na Groq Cloud (Grátis) ↗', 'blog-automatico' ); ?>
+                        </a>
+                    </div>
+
+                    <div class="ba-form-group">
+                        <label for="ba_api_key_groq">
+                            <?php esc_html_e( 'API Key Groq Cloud', 'blog-automatico' ); ?>
+                            <span class="ba-required">*</span>
+                        </label>
+                        <div class="ba-api-key-field">
+                            <input
+                                type="password"
+                                id="ba_api_key_groq"
+                                name="ba_api_key_groq"
+                                class="ba-input"
+                                value="<?php echo esc_attr( $settings->get( 'ba_api_key_groq' ) ); ?>"
+                                placeholder="gsk_..."
+                            />
                             <button type="button" class="ba-toggle-visibility" title="<?php esc_attr_e( 'Mostrar/Ocultar', 'blog-automatico' ); ?>"><span class="dashicons dashicons-visibility"></span></button>
                         </div>
                     </div>

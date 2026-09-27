@@ -84,20 +84,17 @@ class BA_Content_Generator {
             return $result;
         }
 
-        // Parse do JSON retornado
-        $content = json_decode( $result['content'], true );
+        // Parse do JSON retornado com higienização e reparo inteligente
+        $content = $this->parse_json_response( $result['content'] );
 
-        if ( null === $content ) {
-            return new WP_Error(
-                'ba_parse_error',
-                __( 'Falha ao interpretar a resposta da IA. Tente novamente.', 'blog-automatico' )
-            );
+        if ( is_wp_error( $content ) ) {
+            return $content;
         }
 
         // Normalizar encoding de caracteres acentuados e quebras de linha
         $content = $this->normalize_content_encoding( $content );
 
-        // Validar campos obrigatórios
+        // Validar e normalizar campos obrigatórios
         $validation = $this->validate_content( $content );
         if ( is_wp_error( $validation ) ) {
             return $validation;
@@ -123,19 +120,22 @@ class BA_Content_Generator {
      * @return string
      */
     private function build_system_prompt( $tone, $language, $length ) {
-        $base = "Você é um redator profissional especialista em SEO e marketing de conteúdo. 
-Seu trabalho é criar artigos de blog completos, otimizados para mecanismos de busca e altamente engajadores.
+        $base = "Você é um redator profissional especialista em SEO tradicional e GEO (Generative Engine Optimization / Otimização para Citação em IAs como ChatGPT, Perplexity e Google AI Overviews). 
+Seu trabalho é criar artigos de blog completos, altamente engajadores, ricos em dados e desenhados para que mecanismos de IA citem este artigo como FONTE AUTORIDADE quando usuários fizerem buscas sobre o assunto.
 
-Regras importantes:
-- Conteúdo 100% original e livre de plágio
+Regras importantes de redação e GEO (Citação por IAs):
+- Conteúdo 100% original, aprofundado, com informações ricas e sem enrolação
+- Otimizado para citação por IAs (GEO): inclua respostas diretas e conceituais de 1-2 frases no início de cada seção H2/H3
+- Usar dados específicos, nomes de órgãos, leis/decretos, números e fatos verificáveis para passar autoridade máxima
+- Estruturar H2 e H3 usando perguntas reais de busca em linguagem natural
+- Usar listas com marcadores e resumos diretos que facilitam a extração de trechos por IAs e robôs de busca
 - Usar linguagem natural e fluida em {$language}
 - Tom: {$tone}
 - Densidade de palavra-chave principal entre 1-2%
-- Estruturar com H2 e H3 de forma hierárquica
-- Cada seção deve ter conteúdo substancial e informativo
 - SEMPRE use caracteres acentuados reais em UTF-8 nativo (ex: é, ã, ç, ó). NUNCA use sequências de escape como \u00e9 ou \u00e3
 - Gerar prompts de imagem EM INGLÊS e detalhados para DALL-E 3
-- RESPONDER APENAS COM JSON VÁLIDO, sem texto adicional fora do JSON";
+- RESPONDER APENAS COM JSON VÁLIDO e bem formatado, sem texto ou blocos markdown (```json) fora do objeto JSON
+- Em valores de texto com múltiplos parágrafos, use apenas a sequência \\n para separar parágrafos. NUNCA insira quebras de linha brutas (Enter) dentro das aspas do JSON";
 
         // Integrar Treinamento de IA
         $training = $this->settings->get_training_data();
@@ -320,15 +320,49 @@ Requisitos:
      * @param array $content Conteúdo a validar.
      * @return true|WP_Error
      */
-    private function validate_content( $content ) {
+    private function validate_content( &$content ) {
+        if ( ! is_array( $content ) ) {
+            return new WP_Error( 'ba_invalid_content_array', __( 'Conteúdo retornado não é um array válido.', 'blog-automatico' ) );
+        }
+
+        // Normalização de sinônimos/aliases comuns que provedores de IA podem gerar
+        $aliases = array(
+            'titulo'                 => array( 'title', 'headline', 'heading', 'titulo_artigo' ),
+            'meta_description'       => array( 'description', 'meta', 'seo_description', 'metadescription' ),
+            'slug'                   => array( 'url_slug', 'permalink', 'post_slug' ),
+            'introducao'             => array( 'introduction', 'intro', 'lead', 'paragrafo_inicial' ),
+            'secoes'                 => array( 'sections', 'chapters', 'body', 'conteudo_secoes' ),
+            'conclusao'              => array( 'conclusion', 'summary', 'outro', 'consideracoes_finais' ),
+            'prompt_imagem_destaque' => array( 'featured_image_prompt', 'image_prompt', 'prompts_imagem_destaque' ),
+        );
+
+        foreach ( $aliases as $canonical => $synonyms ) {
+            if ( empty( $content[ $canonical ] ) ) {
+                foreach ( $synonyms as $synonym ) {
+                    if ( ! empty( $content[ $synonym ] ) ) {
+                        $content[ $canonical ] = $content[ $synonym ];
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Se slug não foi fornecido, gerar a partir do título
+        if ( empty( $content['slug'] ) && ! empty( $content['titulo'] ) ) {
+            $content['slug'] = sanitize_title( $content['titulo'] );
+        }
+
+        // Se prompt_imagem_destaque não foi fornecido, criar um a partir do título
+        if ( empty( $content['prompt_imagem_destaque'] ) && ! empty( $content['titulo'] ) ) {
+            $content['prompt_imagem_destaque'] = 'Professional featured image representing: ' . $content['titulo'] . ', high quality 8k, modern blog hero visual';
+        }
+
         $required_fields = array(
             'titulo',
             'meta_description',
-            'slug',
             'introducao',
             'secoes',
             'conclusao',
-            'prompt_imagem_destaque',
         );
 
         foreach ( $required_fields as $field ) {
@@ -350,6 +384,36 @@ Requisitos:
                 'ba_invalid_sections',
                 __( 'O conteúdo precisa ter pelo menos uma seção.', 'blog-automatico' )
             );
+        }
+
+        // Normalizar cada seção
+        foreach ( $content['secoes'] as $i => $secao ) {
+            if ( is_string( $secao ) ) {
+                $content['secoes'][ $i ] = array(
+                    'titulo_h2' => __( 'Seção ', 'blog-automatico' ) . ( $i + 1 ),
+                    'conteudo'  => $secao,
+                );
+            } else if ( is_array( $secao ) ) {
+                if ( empty( $secao['titulo_h2'] ) ) {
+                    if ( ! empty( $secao['h2'] ) ) {
+                        $content['secoes'][ $i ]['titulo_h2'] = $secao['h2'];
+                    } else if ( ! empty( $secao['title'] ) ) {
+                        $content['secoes'][ $i ]['titulo_h2'] = $secao['title'];
+                    } else if ( ! empty( $secao['subtitulo'] ) ) {
+                        $content['secoes'][ $i ]['titulo_h2'] = $secao['subtitulo'];
+                    }
+                }
+
+                if ( empty( $secao['conteudo'] ) ) {
+                    if ( ! empty( $secao['content'] ) ) {
+                        $content['secoes'][ $i ]['conteudo'] = $secao['content'];
+                    } else if ( ! empty( $secao['text'] ) ) {
+                        $content['secoes'][ $i ]['conteudo'] = $secao['text'];
+                    } else if ( ! empty( $secao['body'] ) ) {
+                        $content['secoes'][ $i ]['conteudo'] = $secao['body'];
+                    }
+                }
+            }
         }
 
         return true;
@@ -450,6 +514,131 @@ Requisitos:
     private function calculate_max_tokens( $length ) {
         // Aproximação: 1 palavra ≈ 1.5 tokens + overhead do JSON
         return min( intval( $length * 2.5 ) + 1000, 16384 );
+    }
+
+    /**
+     * Interpreta e limpa a resposta JSON da IA de forma altamente robusta.
+     *
+     * @param string $raw_response Resposta bruta da IA.
+     * @return array|WP_Error Dados estruturados ou erro.
+     */
+    private function parse_json_response( $raw_response ) {
+        if ( empty( $raw_response ) || ! is_string( $raw_response ) ) {
+            return new WP_Error(
+                'ba_empty_response',
+                __( 'Resposta da IA veio vazia.', 'blog-automatico' )
+            );
+        }
+
+        // 1. Remover BOM e caracteres nulos/invisíveis
+        $cleaned = preg_replace( '/^[\xEF\xBB\xBF\xFE\xFF]/', '', $raw_response );
+        $cleaned = str_replace( array( "\xEF\xBB\xBF", "\xE2\x80\x8B" ), '', $cleaned );
+        $cleaned = trim( $cleaned );
+
+        // 2. Extrair bloco JSON se estiver envelopado por markdown code fences (```json ... ```)
+        if ( preg_match( '/```(?:json)?\s*([\s\S]*?)\s*```/i', $cleaned, $matches ) ) {
+            $cleaned = trim( $matches[1] );
+        }
+
+        // 3. Localizar delimitadores principais de objeto JSON ({ ... })
+        $first_brace = strpos( $cleaned, '{' );
+        $last_brace  = strrpos( $cleaned, '}' );
+
+        if ( false !== $first_brace && false !== $last_brace && $last_brace > $first_brace ) {
+            $json_str = substr( $cleaned, $first_brace, $last_brace - $first_brace + 1 );
+        } else {
+            $json_str = $cleaned;
+        }
+
+        // Tentativa 1: Decode direto do JSON limpo
+        $content = json_decode( $json_str, true );
+
+        // Tentativa 2: Higienizar quebras de linha brutas, tabulações e vírgulas sobressalentes
+        if ( null === $content ) {
+            // Remover vírgulas sobressalentes antes de fechar objetos ou arrays (ex: { "a": 1, })
+            $json_sanitized = preg_replace( '/,\s*([\}\]])/', '$1', $json_str );
+
+            // Converter quebras de linha brutas (CR/LF) dentro de valores de string JSON para \n escapado
+            $json_sanitized = preg_replace_callback( '/"(?:[^"\\\\]|\\\\.)*"/s', function( $match ) {
+                $str = $match[0];
+                $str = str_replace( array( "\r\n", "\r", "\n" ), '\n', $str );
+                $str = str_replace( "\t", '\t', $str );
+                return $str;
+            }, $json_sanitized );
+
+            $content = json_decode( $json_sanitized, true );
+        }
+
+        // Tentativa 3: Reparo de JSON truncado (se chaves ou colchetes foram cortados por limite de tokens)
+        if ( null === $content ) {
+            $json_repaired = $this->repair_truncated_json( $json_str );
+            if ( ! empty( $json_repaired ) ) {
+                $content = json_decode( $json_repaired, true );
+            }
+        }
+
+        if ( null === $content || ! is_array( $content ) ) {
+            $last_error = json_last_error_msg();
+            if ( function_exists( 'error_log' ) ) {
+                error_log( '[Blog Automático] Erro JSON IA: ' . $last_error );
+                error_log( '[Blog Automático] Resposta bruta: ' . substr( $raw_response, 0, 1000 ) );
+            }
+
+            return new WP_Error(
+                'ba_parse_error',
+                sprintf(
+                    /* translators: %s: mensagem de erro do JSON */
+                    __( 'Falha ao interpretar a resposta da IA (%s). Tente novamente.', 'blog-automatico' ),
+                    $last_error
+                ),
+                array( 'raw_response' => $raw_response )
+            );
+        }
+
+        return $content;
+    }
+
+    /**
+     * Tenta reparar um JSON que foi truncado por limite de tokens da API.
+     *
+     * @param string $json String JSON truncada.
+     * @return string JSON reparado.
+     */
+    private function repair_truncated_json( $json ) {
+        $json = trim( $json );
+
+        if ( 0 !== strpos( $json, '{' ) ) {
+            return $json;
+        }
+
+        // Recuar até o último ponto de encerramento de elemento ou aspas
+        $last_valid = max(
+            strrpos( $json, '"' ),
+            strrpos( $json, '}' ),
+            strrpos( $json, ']' ),
+            strrpos( $json, ',' )
+        );
+
+        if ( false !== $last_valid && $last_valid > 10 ) {
+            $json = substr( $json, 0, $last_valid + 1 );
+        }
+
+        $json = rtrim( $json, " \t\n\r\0\x0B," );
+
+        // Balancear chaves e colchetes
+        $open_braces   = substr_count( $json, '{' ) - substr_count( $json, '}' );
+        $open_brackets = substr_count( $json, '[' ) - substr_count( $json, ']' );
+
+        while ( $open_brackets > 0 ) {
+            $json .= ']';
+            $open_brackets--;
+        }
+        while ( $open_braces > 0 ) {
+            $json .= '}';
+            $open_braces--;
+        }
+
+        return $json;
     }
 
     /**

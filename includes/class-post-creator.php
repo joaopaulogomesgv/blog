@@ -178,23 +178,13 @@ class BA_Post_Creator {
             }
         }
 
-        // === ETAPA 4: Aplicar template Elementor ===
-        if ( $this->elementor_builder->is_elementor_active() ) {
-            $elementor_result = $this->elementor_builder->apply_template(
-                $post_id,
-                $content,
-                $image_ids,
-                $template
-            );
+        // === ETAPA 4: Aplicar formato padrão do WordPress (Gutenberg Nativo) ===
+        $this->elementor_builder->apply_html_fallback( $post_id, $content, $image_ids );
 
-            if ( is_wp_error( $elementor_result ) ) {
-                // Fallback: usar HTML puro
-                $this->elementor_builder->apply_html_fallback( $post_id, $content, $image_ids );
-            }
-        } else {
-            // Sem Elementor: usar HTML com imagens
-            $this->elementor_builder->apply_html_fallback( $post_id, $content, $image_ids );
-        }
+        // Garantir que NÃO ativa o modo Elementor Builder para que o Gutenberg exiba 100% do texto no editor!
+        delete_post_meta( $post_id, '_elementor_edit_mode' );
+        delete_post_meta( $post_id, '_elementor_data' );
+        update_post_meta( $post_id, '_wp_page_template', 'default' );
 
         // === ETAPA 5: Otimização SEO ===
         $this->seo_optimizer->optimize( $post_id, $content );

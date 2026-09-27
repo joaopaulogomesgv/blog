@@ -140,6 +140,9 @@ class BA_Plugin_Core {
             wp_send_json_error( array( 'message' => __( 'Sem permissão.', 'blog-automatico' ) ) );
         }
 
+        @set_time_limit( 300 );
+        @ini_set( 'max_execution_time', '300' );
+
         $idea = isset( $_POST['idea'] ) ? sanitize_textarea_field( wp_unslash( $_POST['idea'] ) ) : '';
         if ( empty( $idea ) ) {
             wp_send_json_error( array( 'message' => __( 'Insira uma ideia para o post.', 'blog-automatico' ) ) );

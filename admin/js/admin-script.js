@@ -69,8 +69,14 @@
                     },
                     error: function (xhr, status, error) {
                         BA.hideProgress();
+                        var errText = error;
+                        if (xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message) {
+                            errText = xhr.responseJSON.data.message;
+                        } else if (status === 'timeout' || xhr.status === 504) {
+                            errText = 'Tempo limite do servidor excedido (Timeout). A chave do Gemini pode estar bloqueada no Google Cloud (RESOURCE_EXHAUSTED).';
+                        }
                         BA.showResult('error', {
-                            message: 'Erro na requisição: ' + error
+                            message: (errText ? errText : 'Falha na conexão com o servidor. Tente novamente.')
                         });
                     },
                     complete: function () {
