@@ -197,7 +197,7 @@ $categories      = get_categories( array( 'hide_empty' => false ) );
                     <!-- Card de link direto para pegar a chave -->
                     <div class="ba-key-help-card">
                         <div class="ba-key-help-info">
-                            <strong><?php esc_html_e( 'Google AI Studio (Gemini 2.5 Flash / Pro)', 'blog-automatico' ); ?></strong>
+                            <strong><?php esc_html_e( 'Google AI Studio (Gemini 3.8 Flash / Pro)', 'blog-automatico' ); ?></strong>
                             <span><?php esc_html_e( 'O Google oferece chaves de API com cota gratuita para desenvolvedores no Google AI Studio.', 'blog-automatico' ); ?></span>
                         </div>
                         <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" class="ba-btn-get-key">

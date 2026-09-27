@@ -4,7 +4,7 @@ Tags: ai, blog, automatic, elementor, seo, openai, gemini, grok, deepseek, conte
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.3.2
+Stable tag: 1.3.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -14,7 +14,7 @@ Cria posts de blog automaticamente usando IA (OpenAI ChatGPT, Google Gemini, xAI
 
 O **Blog Automático com IA** transforma suas ideias em artigos completos de blog. Você pode colar 100+ ideias de uma vez só e ativar o piloto automático para postar 1 ou 2 artigos por dia sem qualquer intervenção manual!
 
-* Suporte Multi-IA: OpenAI (GPT-4o), Google Gemini (Gemini 2.5 Flash / Pro), xAI (Grok 3) e DeepSeek (Chat / Reasoner)
+* Suporte Multi-IA: OpenAI (GPT-4o), Google Gemini (Gemini 3.8 Flash / Pro), xAI (Grok 3) e DeepSeek (Chat / Reasoner)
 * Fila em Massa: Cole até centenas de temas de uma única vez
 * Piloto Automático: Define 1 ou 2 posts diários com agendamento autônomo e janelas de horário
 * Imagens em Destaque geradas via DALL-E ou Grok Image
@@ -32,6 +32,12 @@ O **Blog Automático com IA** transforma suas ideias em artigos completos de blo
 5. Vá em 'Fila de Conteúdo', cole seus assuntos e ative o Piloto Automático!
 
 == Changelog ==
+
+= 1.3.3 =
+* Correção de legibilidade e contraste crítico no Card de Resultado (evita texto claro em fundo branco herdado do WordPress)
+* Ajuste definitivo para Gemini 3.8 Flash como modelo principal exigido pelo Google AI Studio para novas contas
+* Suporte a fallback inteligente para modelos com deprecation/no longer available
+* Ocultação de metadados vazios em caso de erro para exibição limpa e explicativa da mensagem
 
 = 1.3.2 =
 * Botão de exclusão (lixeira) adicionado na tabela de Últimas Gerações no Dashboard

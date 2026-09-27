@@ -1045,13 +1045,30 @@ div.ba-alert-success .dashicons,
 /* Result Card */
 .ba-result {
     display: none; margin-top: 18px; padding: 20px;
-    background: #242424; border: 1px solid #333333; border-radius: 6px;
+    background: #1c1c1c !important; border: 1px solid #333333 !important; border-radius: 6px;
+    box-shadow: none !important;
 }
 .ba-result.active { display: block; }
-.ba-result.success { border-left: 3px solid #B4D443; }
-.ba-result.error { border-left: 3px solid #ef4444; }
-.ba-result-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-.ba-result-title { font-size: 15px; font-weight: 600; color: #ffffff; }
+.ba-result.success {
+    border-left: 4px solid #B4D443 !important;
+    background: #122116 !important;
+}
+.ba-result.error {
+    border-left: 4px solid #ef4444 !important;
+    background: #251214 !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4) !important;
+}
+.ba-result-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+.ba-result-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: #ffffff !important;
+    line-height: 1.5;
+    word-break: break-word;
+}
+.ba-result.error .ba-result-title {
+    color: #fecaca !important;
+}
 .ba-result-meta {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: 10px; margin: 14px 0;

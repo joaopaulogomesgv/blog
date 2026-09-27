@@ -122,8 +122,9 @@
             $result.removeClass('success error').addClass('active ' + type);
 
             if (type === 'success') {
-                $result.find('.ba-result-icon').html('<span class="dashicons dashicons-yes-alt" style="font-size:32px;color:#34d399;"></span>');
+                $result.find('.ba-result-icon').html('<span class="dashicons dashicons-yes-alt" style="font-size:32px;width:32px;height:32px;color:#34d399;"></span>');
                 $result.find('.ba-result-title').text(data.title || baAdmin.strings.success);
+                $result.find('.ba-result-meta').show();
 
                 $result.find('.meta-tokens').text(data.tokens_used ? Number(data.tokens_used).toLocaleString() : '0');
                 $result.find('.meta-images').text(data.images_count || '0');
@@ -137,8 +138,9 @@
                     $result.find('.ba-link-view').attr('href', data.post_url).show();
                 }
             } else {
-                $result.find('.ba-result-icon').html('<span class="dashicons dashicons-dismiss" style="font-size:32px;color:#f85149;"></span>');
-                $result.find('.ba-result-title').text(data.message || baAdmin.strings.error);
+                $result.find('.ba-result-icon').html('<span class="dashicons dashicons-dismiss" style="font-size:32px;width:32px;height:32px;color:#ef4444;"></span>');
+                $result.find('.ba-result-title').html('<div style="color:#ffffff; font-weight:600; font-size:15px; margin-bottom:6px;">Falha na geração do artigo:</div><div style="color:#fca5a5; font-size:13.5px; line-height:1.5;">' + (data.message || baAdmin.strings.error) + '</div>');
+                $result.find('.ba-result-meta').hide();
                 $result.find('.ba-link-edit, .ba-link-view').hide();
             }
 

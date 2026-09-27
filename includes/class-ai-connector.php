@@ -34,12 +34,10 @@ class BA_AI_Connector {
             'name'     => 'Google Gemini',
             'base_url' => 'https://generativelanguage.googleapis.com/v1beta',
             'models'   => array(
-                'gemini-2.5-flash'       => 'Gemini 2.5 Flash (Recomendado / Mais Estável)',
-                'gemini-2.5-pro'         => 'Gemini 2.5 Pro (Avançado)',
+                'gemini-3.8-flash'       => 'Gemini 3.8 Flash (Recomendado)',
+                'gemini-3.1-pro-preview' => 'Gemini 3.1 Pro Preview (Avançado)',
                 'gemini-flash-latest'    => 'Gemini Flash Latest',
                 'gemini-pro-latest'      => 'Gemini Pro Latest',
-                'gemini-3.8-flash'       => 'Gemini 3.8 Flash (Preview / Alta Demanda)',
-                'gemini-3.1-pro-preview' => 'Gemini 3.1 Pro Preview',
             ),
             'image_models'     => array(),
             'supports_images'  => false,
@@ -191,12 +189,10 @@ class BA_AI_Connector {
             $models_to_try[] = $selected_model;
         }
 
-        // Alternativas para fallback automático caso haja sobrecarga ("high demand")
+        // Alternativas para fallback automático
         $fallback_pool = array(
-            'gemini-2.5-flash',
-            'gemini-flash-latest',
-            'gemini-2.5-pro',
             'gemini-3.8-flash',
+            'gemini-flash-latest',
             'gemini-3.1-pro-preview',
             'gemini-pro-latest',
         );
@@ -208,7 +204,7 @@ class BA_AI_Connector {
         }
 
         if ( empty( $models_to_try ) ) {
-            $models_to_try = array( 'gemini-2.5-flash' );
+            $models_to_try = array( 'gemini-3.8-flash' );
         }
 
         $base_url   = self::$providers['gemini']['base_url'];
@@ -245,8 +241,19 @@ class BA_AI_Connector {
                 $err_data   = $response->get_error_data();
                 $status     = ( is_array( $err_data ) && isset( $err_data['status'] ) ) ? intval( $err_data['status'] ) : 0;
 
-                // Se for erro de sobrecarga/capacidade temporária (503 / 429 / high demand / overloaded), tenta o próximo modelo
-                if ( 503 === $status || 429 === $status || stripos( $err_msg, 'high demand' ) !== false || stripos( $err_msg, 'overloaded' ) !== false ) {
+                // Se for erro de sobrecarga temporária (503/429) ou modelo descontinuado/indisponível para o usuário, tenta o próximo modelo
+                $is_temporary_or_model_error = (
+                    503 === $status ||
+                    429 === $status ||
+                    404 === $status ||
+                    stripos( $err_msg, 'high demand' ) !== false ||
+                    stripos( $err_msg, 'overloaded' ) !== false ||
+                    stripos( $err_msg, 'no longer available' ) !== false ||
+                    stripos( $err_msg, 'not found' ) !== false ||
+                    stripos( $err_msg, 'deprecated' ) !== false
+                );
+
+                if ( $is_temporary_or_model_error ) {
                     continue;
                 }
 
