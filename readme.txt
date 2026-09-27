@@ -4,7 +4,7 @@ Tags: ai, blog, automatic, elementor, seo, openai, gemini, grok, deepseek, conte
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.3.4
+Stable tag: 1.3.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -32,6 +32,12 @@ O **Blog Automático com IA** transforma suas ideias em artigos completos de blo
 5. Vá em 'Fila de Conteúdo', cole seus assuntos e ative o Piloto Automático!
 
 == Changelog ==
+
+= 1.3.5 =
+* Remoção de modelos Pro sem cota gratuita (limit: 0) do pool de contingência do Gemini
+* Foco exclusivo nos modelos Flash oficiais (Gemini 3.8 Flash e Flash Latest) com cota gratuita ativa
+* Tradução humanizada e orientada para limites temporários de requisições por minuto com indicação de tempo de espera em segundos
+* Prevenção de loop em modelos pagos para chaves free-tier do Google AI Studio
 
 = 1.3.4 =
 * Correção de encoding UTF-8 no Elementor (elimina u00e9, u00e3, u00f5 e quebras de linha n residuais)

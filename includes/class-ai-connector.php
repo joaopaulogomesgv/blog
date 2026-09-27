@@ -34,10 +34,8 @@ class BA_AI_Connector {
             'name'     => 'Google Gemini',
             'base_url' => 'https://generativelanguage.googleapis.com/v1beta',
             'models'   => array(
-                'gemini-3.8-flash'       => 'Gemini 3.8 Flash (Recomendado)',
-                'gemini-3.1-pro-preview' => 'Gemini 3.1 Pro Preview (Avançado)',
-                'gemini-flash-latest'    => 'Gemini Flash Latest',
-                'gemini-pro-latest'      => 'Gemini Pro Latest',
+                'gemini-3.8-flash'    => 'Gemini 3.8 Flash (Recomendado / Cota Gratuita)',
+                'gemini-flash-latest' => 'Gemini Flash Latest (Cota Gratuita)',
             ),
             'image_models'     => array(),
             'supports_images'  => false,
@@ -189,12 +187,10 @@ class BA_AI_Connector {
             $models_to_try[] = $selected_model;
         }
 
-        // Alternativas para fallback automático
+        // Alternativas gratuitas para fallback automático
         $fallback_pool = array(
             'gemini-3.8-flash',
             'gemini-flash-latest',
-            'gemini-3.1-pro-preview',
-            'gemini-pro-latest',
         );
 
         foreach ( $fallback_pool as $fb_m ) {
@@ -241,7 +237,7 @@ class BA_AI_Connector {
                 $err_data   = $response->get_error_data();
                 $status     = ( is_array( $err_data ) && isset( $err_data['status'] ) ) ? intval( $err_data['status'] ) : 0;
 
-                // Se for erro de sobrecarga temporária (503/429) ou modelo descontinuado/indisponível para o usuário, tenta o próximo modelo
+                // Se for erro de sobrecarga temporária (503/429), cota zero em modelo anterior, ou modelo descontinuado, tenta o próximo modelo
                 $is_temporary_or_model_error = (
                     503 === $status ||
                     429 === $status ||
@@ -250,6 +246,7 @@ class BA_AI_Connector {
                     stripos( $err_msg, 'overloaded' ) !== false ||
                     stripos( $err_msg, 'no longer available' ) !== false ||
                     stripos( $err_msg, 'not found' ) !== false ||
+                    stripos( $err_msg, 'limit: 0' ) !== false ||
                     stripos( $err_msg, 'deprecated' ) !== false
                 );
 
@@ -415,6 +412,22 @@ class BA_AI_Connector {
             // Tradução amigável para mensagens de pico de demanda do Google
             if ( stripos( $error_msg, 'high demand' ) !== false || stripos( $error_msg, 'overloaded' ) !== false || 503 === $status_code ) {
                 $error_msg = __( 'Os servidores do Google Gemini estão enfrentando pico temporário de demanda ("High Demand"). Tentamos alternativas automáticas. Por favor, aguarde alguns instantes ou selecione outro modelo/provedor nas Configurações.', 'blog-automatico' );
+            }
+
+            // Tradução amigável para Quota Exceeded / Rate Limit do Google
+            if ( stripos( $error_msg, 'quota exceeded' ) !== false || stripos( $error_msg, 'RESOURCE_EXHAUSTED' ) !== false ) {
+                if ( stripos( $error_msg, 'limit: 0' ) !== false ) {
+                    $error_msg = __( 'O modelo selecionado não possui cota gratuita na sua chave do Google AI Studio (limit: 0). Por favor, vá em Blog Automático > Configurações e certifique-se de selecionar o modelo "Gemini 3.8 Flash (Recomendado / Cota Gratuita)".', 'blog-automatico' );
+                } else {
+                    $wait_sec = 60;
+                    if ( preg_match( '/retry in ([\d\.]+)s/i', $error_msg, $matches ) ) {
+                        $wait_sec = ceil( floatval( $matches[1] ) );
+                    }
+                    $error_msg = sprintf(
+                        __( 'Limite de requisições por minuto atingido na cota gratuita do Google AI Studio. O Google solicita aguardar cerca de %d segundos para restabelecer a cota. Por favor, aguarde esse tempo e clique em "Gerar Post Completo Agora" novamente.', 'blog-automatico' ),
+                        $wait_sec
+                    );
+                }
             }
 
             return new WP_Error( 'ba_api_error', $error_msg, array( 'status' => $status_code ) );
