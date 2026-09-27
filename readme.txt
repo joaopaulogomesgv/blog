@@ -4,7 +4,7 @@ Tags: ai, blog, automatic, elementor, seo, openai, gemini, grok, deepseek, conte
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.2.0
+Stable tag: 1.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,6 +21,7 @@ O **Blog Automático com IA** transforma suas ideias em artigos completos de blo
 * Elementor Pro: Layouts responsivos modernos injetados automaticamente
 * SEO Integrado: Preenchimento automático de meta title, meta description e Schema Markup (FAQPage e Article)
 * Dashboard analítico com consumo de tokens e histórico completo
+* **NOVO: Treinamento de IA** — Personalize a escrita para que seja 100% indetectável como IA
 
 == Installation ==
 
@@ -31,6 +32,17 @@ O **Blog Automático com IA** transforma suas ideias em artigos completos de blo
 5. Vá em 'Fila de Conteúdo', cole seus assuntos e ative o Piloto Automático!
 
 == Changelog ==
+
+= 1.3.0 =
+* Nova aba "Treinamento de IA" para personalização completa da escrita
+* Persona do escritor: defina a identidade, experiência e tom de voz que a IA deve adotar
+* Nível de humanização configurável (leve, moderado, alto) com variação de frases e parágrafos
+* Campo de textos de referência: cole seus textos reais para a IA copiar seu estilo pessoal
+* Lista de palavras/expressões proibidas (ex: "vale ressaltar", "é importante destacar") para eliminar marcas de IA
+* Lista de expressões preferidas para tornar o texto mais pessoal e natural
+* Regras personalizadas livres para instruções específicas do usuário
+* Sistema anti-detecção: evita padrões previsíveis de IA (estrutura uniforme, conectivos excessivos, introduções genéricas)
+* Integração total com o gerador de conteúdo — todas as configurações são injetadas nos prompts automaticamente
 
 = 1.2.0 =
 * Layout 100% fluido e adaptado para telas amplas, monitores Full HD, 2K, 4K e ultrawide: remoção da trava de largura fixa de 1280px.

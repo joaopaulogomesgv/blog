@@ -49,6 +49,7 @@ class BA_Admin_Menu {
         add_submenu_page( 'blog-automatico', __( 'Novo Post IA', 'blog-automatico' ), __( 'Novo Post IA', 'blog-automatico' ), 'edit_posts', 'blog-automatico-new', array( $this, 'render_new_post' ) );
         add_submenu_page( 'blog-automatico', __( 'Fila de Conteúdo', 'blog-automatico' ), __( 'Fila de Conteúdo', 'blog-automatico' ), 'edit_posts', 'blog-automatico-queue', array( $this, 'render_queue' ) );
         add_submenu_page( 'blog-automatico', __( 'Histórico', 'blog-automatico' ), __( 'Histórico', 'blog-automatico' ), 'edit_posts', 'blog-automatico-history', array( $this, 'render_history' ) );
+        add_submenu_page( 'blog-automatico', __( 'Treinamento IA', 'blog-automatico' ), __( 'Treinamento IA', 'blog-automatico' ), 'manage_options', 'blog-automatico-training', array( $this, 'render_training' ) );
         add_submenu_page( 'blog-automatico', __( 'Configurações', 'blog-automatico' ), __( 'Configurações', 'blog-automatico' ), 'manage_options', 'blog-automatico-settings', array( $this, 'render_settings' ) );
     }
 
@@ -58,6 +59,7 @@ class BA_Admin_Menu {
             'blog-automatico_page_blog-automatico-new',
             'blog-automatico_page_blog-automatico-queue',
             'blog-automatico_page_blog-automatico-history',
+            'blog-automatico_page_blog-automatico-training',
             'blog-automatico_page_blog-automatico-settings',
         );
 
@@ -94,5 +96,6 @@ class BA_Admin_Menu {
     public function render_new_post()  { include BA_PLUGIN_DIR . 'admin/views/new-post.php'; }
     public function render_queue()     { include BA_PLUGIN_DIR . 'admin/views/queue.php'; }
     public function render_history()   { include BA_PLUGIN_DIR . 'admin/views/history.php'; }
+    public function render_training()  { include BA_PLUGIN_DIR . 'admin/views/training.php'; }
     public function render_settings()  { include BA_PLUGIN_DIR . 'admin/views/settings.php'; }
 }

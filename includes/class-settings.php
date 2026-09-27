@@ -35,6 +35,17 @@ class BA_Settings {
         'ba_posts_per_day'       => 1,
         'ba_auto_post_time_start' => '08:00',
         'ba_auto_post_time_end'  => '18:00',
+        // Treinamento IA
+        'ba_training_writing_style'    => 'natural',
+        'ba_training_persona'          => '',
+        'ba_training_reference_texts'  => '',
+        'ba_training_forbidden_words'  => '',
+        'ba_training_preferred_words'  => '',
+        'ba_training_custom_rules'     => '',
+        'ba_training_humanize_level'   => 'high',
+        'ba_training_sentence_variety' => 'high',
+        'ba_training_paragraph_style'  => 'varied',
+        'ba_training_avoid_patterns'   => '1',
     );
 
     public function __construct() {
@@ -75,6 +86,26 @@ class BA_Settings {
 
         foreach ( $settings as $key => $callback ) {
             register_setting( 'ba_settings_group', $key, array(
+                'sanitize_callback' => $callback,
+            ));
+        }
+
+        // Registrar settings do Treinamento IA
+        $training_settings = array(
+            'ba_training_writing_style'    => 'sanitize_text_field',
+            'ba_training_persona'          => 'sanitize_textarea_field',
+            'ba_training_reference_texts'  => 'sanitize_textarea_field',
+            'ba_training_forbidden_words'  => 'sanitize_textarea_field',
+            'ba_training_preferred_words'  => 'sanitize_textarea_field',
+            'ba_training_custom_rules'     => 'sanitize_textarea_field',
+            'ba_training_humanize_level'   => 'sanitize_text_field',
+            'ba_training_sentence_variety' => 'sanitize_text_field',
+            'ba_training_paragraph_style'  => 'sanitize_text_field',
+            'ba_training_avoid_patterns'   => 'sanitize_text_field',
+        );
+
+        foreach ( $training_settings as $key => $callback ) {
+            register_setting( 'ba_training_group', $key, array(
                 'sanitize_callback' => $callback,
             ));
         }
@@ -181,5 +212,36 @@ class BA_Settings {
     public function get_posts_per_day() {
         $ppd = intval( $this->get( 'ba_posts_per_day' ) );
         return max( 1, min( 10, $ppd ) );
+    }
+
+    /**
+     * Retorna todos os dados de treinamento para construção de prompts.
+     *
+     * @return array
+     */
+    public function get_training_data() {
+        return array(
+            'writing_style'    => $this->get( 'ba_training_writing_style' ),
+            'persona'          => $this->get( 'ba_training_persona' ),
+            'reference_texts'  => $this->get( 'ba_training_reference_texts' ),
+            'forbidden_words'  => $this->get( 'ba_training_forbidden_words' ),
+            'preferred_words'  => $this->get( 'ba_training_preferred_words' ),
+            'custom_rules'     => $this->get( 'ba_training_custom_rules' ),
+            'humanize_level'   => $this->get( 'ba_training_humanize_level' ),
+            'sentence_variety' => $this->get( 'ba_training_sentence_variety' ),
+            'paragraph_style'  => $this->get( 'ba_training_paragraph_style' ),
+            'avoid_patterns'   => $this->get( 'ba_training_avoid_patterns' ),
+        );
+    }
+
+    /**
+     * Verifica se o treinamento está configurado.
+     *
+     * @return bool
+     */
+    public function has_training() {
+        $persona   = $this->get( 'ba_training_persona' );
+        $forbidden = $this->get( 'ba_training_forbidden_words' );
+        return ! empty( $persona ) || ! empty( $forbidden );
     }
 }

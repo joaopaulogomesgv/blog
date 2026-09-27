@@ -120,21 +120,132 @@ class BA_Content_Generator {
      * @return string
      */
     private function build_system_prompt( $tone, $language, $length ) {
-        return "Você é um redator profissional especialista em SEO e marketing de conteúdo. 
+        $base = "Você é um redator profissional especialista em SEO e marketing de conteúdo. 
 Seu trabalho é criar artigos de blog completos, otimizados para mecanismos de busca e altamente engajadores.
 
 Regras importantes:
 - Conteúdo 100% original e livre de plágio
 - Usar linguagem natural e fluida em {$language}
 - Tom: {$tone}
-- Incluir palavras de transição para melhor legibilidade (Além disso, No entanto, Em resumo, etc.)
 - Densidade de palavra-chave principal entre 1-2%
-- Incluir listas (bullet points ou numeradas) quando apropriado
 - Estruturar com H2 e H3 de forma hierárquica
 - Cada seção deve ter conteúdo substancial e informativo
 - Gerar prompts de imagem EM INGLÊS e detalhados para DALL-E 3
 - RESPONDER APENAS COM JSON VÁLIDO, sem texto adicional fora do JSON";
+
+        // Integrar Treinamento de IA
+        $training = $this->settings->get_training_data();
+        $training_prompt = $this->build_training_prompt( $training );
+
+        if ( ! empty( $training_prompt ) ) {
+            $base .= "\n\n" . $training_prompt;
+        }
+
+        return $base;
     }
+
+    /**
+     * Constrói instruções de treinamento para humanização do texto.
+     *
+     * @param array $training Dados de treinamento.
+     * @return string Instruções adicionais para o prompt.
+     */
+    private function build_training_prompt( $training ) {
+        $parts = array();
+
+        // Estilo de escrita
+        $style_map = array(
+            'natural'      => 'Escreva de forma natural e fluida, como se estivesse explicando algo para um amigo. Use linguagem do dia-a-dia.',
+            'jornalistico' => 'Escreva como um jornalista: objetivo, factual e direto ao ponto. Use a pirâmide invertida.',
+            'storytelling'  => 'Use narrativas e histórias para envolver o leitor. Comece seções com mini-histórias ou cenários reais.',
+            'academico'    => 'Escreva com rigor acadêmico, citando fontes e usando terminologia técnica quando necessário.',
+            'blogueiro'    => 'Escreva como um blogueiro experiente: com opinião, personalidade e um toque pessoal. Fale na primeira pessoa.',
+            'copywriting'  => 'Use técnicas de copywriting: gere curiosidade, destaque benefícios e guie o leitor para uma ação.',
+        );
+        if ( ! empty( $training['writing_style'] ) && isset( $style_map[ $training['writing_style'] ] ) ) {
+            $parts[] = "ESTILO DE ESCRITA: " . $style_map[ $training['writing_style'] ];
+        }
+
+        // Persona
+        if ( ! empty( $training['persona'] ) ) {
+            $parts[] = "PERSONA DO ESCRITOR (adote esta identidade na escrita):\n" . $training['persona'];
+        }
+
+        // Humanização
+        $humanize_rules = array();
+        $level = ! empty( $training['humanize_level'] ) ? $training['humanize_level'] : 'high';
+
+        if ( 'medium' === $level || 'high' === $level ) {
+            $humanize_rules[] = "Varie o tamanho das frases: misture frases curtas (5-8 palavras) com médias (12-18 palavras) e ocasionalmente longas (25+ palavras)";
+            $humanize_rules[] = "NÃO comece parágrafos consecutivos com a mesma estrutura gramatical";
+            $humanize_rules[] = "Use perguntas retóricas de vez em quando para engajar o leitor";
+        }
+        if ( 'high' === $level ) {
+            $humanize_rules[] = "Inclua opiniões pessoais sutis e posicionamentos (ex: 'na minha experiência', 'o que eu vejo acontecer muito é')";
+            $humanize_rules[] = "Use ocasionalmente frases incompletas ou interrupções naturais (ex: 'E sabe o que aconteceu? Nada.')";
+            $humanize_rules[] = "Varie o início dos parágrafos: às vezes com dado, às vezes com pergunta, às vezes com afirmação direta, às vezes com exemplo";
+            $humanize_rules[] = "NÃO use conectivos no início de TODOS os parágrafos — deixe alguns começarem abruptamente";
+            $humanize_rules[] = "Alterne entre explicar, exemplificar e questionar dentro de cada seção";
+        }
+
+        // Variedade de frases
+        if ( ! empty( $training['sentence_variety'] ) && 'high' === $training['sentence_variety'] ) {
+            $humanize_rules[] = "VARIE RADICALMENTE o ritmo: após uma frase longa explicativa, coloque uma frase curta e impactante";
+        }
+
+        // Estilo de parágrafo
+        $para_map = array(
+            'short'  => "Use parágrafos curtos de 1 a 3 frases. Facilite a leitura em tela.",
+            'varied' => "Varie o tamanho dos parágrafos: alguns com 1-2 frases, outros com 3-5 frases. Nunca mantenha um padrão fixo.",
+            'long'   => "Use parágrafos mais densos de 4-6 frases para aprofundar cada ponto.",
+        );
+        if ( ! empty( $training['paragraph_style'] ) && isset( $para_map[ $training['paragraph_style'] ] ) ) {
+            $humanize_rules[] = $para_map[ $training['paragraph_style'] ];
+        }
+
+        // Evitar padrões de IA
+        if ( ! empty( $training['avoid_patterns'] ) && '1' === $training['avoid_patterns'] ) {
+            $humanize_rules[] = "NUNCA use estrutura previsível (intro genérica → lista → conclusão genérica)";
+            $humanize_rules[] = "NÃO faça listas com exatamente o mesmo número de itens em todas as seções";
+            $humanize_rules[] = "EVITE introduções que começam com 'Neste artigo vamos...' ou 'Você já se perguntou...'";
+            $humanize_rules[] = "NÃO use conclusões que começam com 'Em conclusão' ou 'Em resumo'";
+            $humanize_rules[] = "EVITE excesso de palavras de transição — humanos não usam conectivos em toda frase";
+        }
+
+        if ( ! empty( $humanize_rules ) ) {
+            $parts[] = "REGRAS DE HUMANIZAÇÃO (ESSENCIAL — siga rigorosamente):\n- " . implode( "\n- ", $humanize_rules );
+        }
+
+        // Palavras proibidas
+        if ( ! empty( $training['forbidden_words'] ) ) {
+            $words = array_filter( array_map( 'trim', explode( "\n", $training['forbidden_words'] ) ) );
+            if ( ! empty( $words ) ) {
+                $parts[] = "PALAVRAS E EXPRESSÕES PROIBIDAS (NUNCA use nenhuma destas):\n\"" . implode( "\", \"", array_slice( $words, 0, 40 ) ) . "\"";
+            }
+        }
+
+        // Palavras preferidas
+        if ( ! empty( $training['preferred_words'] ) ) {
+            $words = array_filter( array_map( 'trim', explode( "\n", $training['preferred_words'] ) ) );
+            if ( ! empty( $words ) ) {
+                $parts[] = "EXPRESSÕES PREFERIDAS (use estas naturalmente ao longo do texto):\n\"" . implode( "\", \"", array_slice( $words, 0, 30 ) ) . "\"";
+            }
+        }
+
+        // Textos de referência
+        if ( ! empty( $training['reference_texts'] ) ) {
+            $ref = mb_substr( $training['reference_texts'], 0, 2000 );
+            $parts[] = "TEXTOS DE REFERÊNCIA DO ESCRITOR (imite este estilo, vocabulário e ritmo):\n---\n" . $ref . "\n---\nAnalise o estilo acima e replique: tamanho médio de frases, nível de formalidade, uso de gírias, estrutura de argumentação e tom emocional.";
+        }
+
+        // Regras personalizadas
+        if ( ! empty( $training['custom_rules'] ) ) {
+            $parts[] = "INSTRUÇÕES ADICIONAIS DO USUÁRIO:\n" . $training['custom_rules'];
+        }
+
+        return implode( "\n\n", $parts );
+    }
+
 
     /**
      * Constrói o prompt do usuário.
