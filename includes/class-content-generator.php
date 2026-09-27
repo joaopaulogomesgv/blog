@@ -94,6 +94,9 @@ class BA_Content_Generator {
             );
         }
 
+        // Normalizar encoding de caracteres acentuados e quebras de linha
+        $content = $this->normalize_content_encoding( $content );
+
         // Validar campos obrigatórios
         $validation = $this->validate_content( $content );
         if ( is_wp_error( $validation ) ) {
@@ -130,6 +133,7 @@ Regras importantes:
 - Densidade de palavra-chave principal entre 1-2%
 - Estruturar com H2 e H3 de forma hierárquica
 - Cada seção deve ter conteúdo substancial e informativo
+- SEMPRE use caracteres acentuados reais em UTF-8 nativo (ex: é, ã, ç, ó). NUNCA use sequências de escape como \u00e9 ou \u00e3
 - Gerar prompts de imagem EM INGLÊS e detalhados para DALL-E 3
 - RESPONDER APENAS COM JSON VÁLIDO, sem texto adicional fora do JSON";
 
@@ -349,6 +353,40 @@ Requisitos:
         }
 
         return true;
+    }
+
+    /**
+     * Normaliza recursivamente os dados decodificados para garantir UTF-8 limpo sem sequências de escape.
+     *
+     * @param mixed $data Dados a normalizar.
+     * @return mixed
+     */
+    private function normalize_content_encoding( $data ) {
+        if ( is_array( $data ) ) {
+            foreach ( $data as $k => $v ) {
+                $data[ $k ] = $this->normalize_content_encoding( $v );
+            }
+            return $data;
+        }
+
+        if ( is_string( $data ) ) {
+            // Decodifica sequências Unicode escapadas literais (ex: \u00e9, \u00e3) se existirem
+            if ( false !== strpos( $data, '\u' ) ) {
+                $converted = preg_replace_callback( '/\\\\u([0-9a-fA-F]{4})/', function ( $match ) {
+                    return mb_convert_encoding( pack( 'H*', $match[1] ), 'UTF-8', 'UCS-2BE' );
+                }, $data );
+
+                if ( null !== $converted ) {
+                    $data = $converted;
+                }
+            }
+
+            // Normaliza quebras de linha literais residuais (\r\n e \n)
+            $data = str_replace( array( "\\r\\n", "\\n" ), "\n", $data );
+            return $data;
+        }
+
+        return $data;
     }
 
     /**

@@ -4,7 +4,7 @@ Tags: ai, blog, automatic, elementor, seo, openai, gemini, grok, deepseek, conte
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.3.3
+Stable tag: 1.3.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -32,6 +32,12 @@ O **Blog Automático com IA** transforma suas ideias em artigos completos de blo
 5. Vá em 'Fila de Conteúdo', cole seus assuntos e ative o Piloto Automático!
 
 == Changelog ==
+
+= 1.3.4 =
+* Correção de encoding UTF-8 no Elementor (elimina u00e9, u00e3, u00f5 e quebras de linha n residuais)
+* Aplicação de wp_slash() e JSON_UNESCAPED_UNICODE ao salvar _elementor_data no WordPress
+* Normalização recursiva de caracteres acentuados e quebras de linha antes da gravação do post
+* Instrução explícita de caracteres nativos UTF-8 no prompt da IA
 
 = 1.3.3 =
 * Correção de legibilidade e contraste crítico no Card de Resultado (evita texto claro em fundo branco herdado do WordPress)

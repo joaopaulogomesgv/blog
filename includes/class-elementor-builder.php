@@ -371,8 +371,9 @@ class BA_Elementor_Builder {
      * @param array $elementor_data Dados do Elementor.
      */
     private function save_elementor_data( $post_id, $elementor_data ) {
-        // Salvar dados do Elementor
-        update_post_meta( $post_id, '_elementor_data', wp_json_encode( $elementor_data ) );
+        // Salvar dados do Elementor garantindo UTF-8 sem escapes e com slashes obrigatórios para o update_post_meta
+        $json_data = wp_json_encode( $elementor_data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
+        update_post_meta( $post_id, '_elementor_data', wp_slash( $json_data ) );
 
         // Marcar que o post usa Elementor
         update_post_meta( $post_id, '_elementor_edit_mode', 'builder' );
