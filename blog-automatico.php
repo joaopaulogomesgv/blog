@@ -23,7 +23,7 @@ define( 'BA_PLUGIN_FILE', __FILE__ );
 define( 'BA_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'BA_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'BA_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
-define( 'BA_DB_VERSION', '1.1.0' );
+define( 'BA_DB_VERSION', '1.2.0' );
 
 // Autoload das classes
 spl_autoload_register( function ( $class_name ) {
