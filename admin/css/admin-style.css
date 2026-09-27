@@ -1,8 +1,7 @@
 /* ==========================================================================
-   Blog Automático — Admin Styles v1.1.7
+   Blog Automático — Admin Styles v1.1.8
    Modo Noturno Básico, Sóbrio e Profissional (Padrão WordPress)
-   Botões e acentos em #B4D443 com tipografia legível e contrastes nítidos.
-   Width 100% garantido para o campo principal de ideias e fila.
+   Ícones e chevrons modernos de alta precisão com background-size calibrado.
    ========================================================================== */
 
 /* ---- Fundo Geral Imersivo (Sem Bordas Brancas) ---- */
@@ -86,13 +85,37 @@ body.ba-admin-body #wpfooter a {
     box-shadow: 0 0 0 1px #B4D443 !important;
 }
 
-#wpbody .ba-wrap select {
+#wpbody .ba-wrap select,
+.ba-wrap select,
+select.ba-select {
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
     appearance: none !important;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23888888' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
     background-repeat: no-repeat !important;
     background-position: right 12px center !important;
+    background-size: 14px 14px !important;
     padding-right: 36px !important;
     cursor: pointer !important;
+    line-height: 1.4 !important;
+}
+
+#wpbody .ba-wrap select:hover,
+.ba-wrap select:hover,
+select.ba-select:hover {
+    border-color: #4a4a4a !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23cccccc' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
+    background-size: 14px 14px !important;
+}
+
+#wpbody .ba-wrap select:focus,
+.ba-wrap select:focus,
+select.ba-select:focus {
+    border-color: #B4D443 !important;
+    background-color: #181818 !important;
+    box-shadow: 0 0 0 1px #B4D443 !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23B4D443' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
+    background-size: 14px 14px !important;
 }
 
 #wpbody .ba-wrap select option {
@@ -650,6 +673,29 @@ body.ba-admin-body #wpfooter a {
     color: #888888 !important;
     border-color: #444444 !important;
     box-shadow: none !important;
+}
+
+.ba-btn .dashicons {
+    font-size: 15px !important;
+    width: 15px !important;
+    height: 15px !important;
+    line-height: 1 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    vertical-align: middle !important;
+}
+
+.ba-btn-sm .dashicons {
+    font-size: 13px !important;
+    width: 13px !important;
+    height: 13px !important;
+}
+
+.ba-btn-lg .dashicons {
+    font-size: 17px !important;
+    width: 17px !important;
+    height: 17px !important;
 }
 
 #wpbody .ba-wrap .ba-btn-primary .dashicons,

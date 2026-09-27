@@ -4,7 +4,7 @@ Tags: ai, blog, automatic, elementor, seo, openai, gemini, grok, deepseek, conte
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.1.7
+Stable tag: 1.1.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -31,6 +31,11 @@ O **Blog Automático com IA** transforma suas ideias em artigos completos de blo
 5. Vá em 'Fila de Conteúdo', cole seus assuntos e ative o Piloto Automático!
 
 == Changelog ==
+
+= 1.1.8 =
+* Correção dos ícones de setas nos campos select: novo chevron moderno, sutil e proporcional com viewBox 24x24 e background-size fixo de 14px
+* Removidas distorções visuais e setas ampliadas que apareciam em resoluções com zoom/DPI scaling do Windows
+* Calibração de alinhamento vertical e proporção dos dashicons nos botões de ação
 
 = 1.1.7 =
 * Nova paleta de botões e destaques na cor `#B4D443` com contraste WCAG perfeito (texto escuro, ícones nítidos e hover suave)
