@@ -34,10 +34,12 @@ class BA_AI_Connector {
             'name'     => 'Google Gemini',
             'base_url' => 'https://generativelanguage.googleapis.com/v1beta',
             'models'   => array(
-                'gemini-3.8-flash'       => 'Gemini 3.8 Flash (Recomendado)',
-                'gemini-3.1-pro-preview' => 'Gemini 3.1 Pro Preview (Avançado)',
+                'gemini-2.5-flash'       => 'Gemini 2.5 Flash (Recomendado / Mais Estável)',
+                'gemini-2.5-pro'         => 'Gemini 2.5 Pro (Avançado)',
                 'gemini-flash-latest'    => 'Gemini Flash Latest',
                 'gemini-pro-latest'      => 'Gemini Pro Latest',
+                'gemini-3.8-flash'       => 'Gemini 3.8 Flash (Preview / Alta Demanda)',
+                'gemini-3.1-pro-preview' => 'Gemini 3.1 Pro Preview',
             ),
             'image_models'     => array(),
             'supports_images'  => false,
@@ -181,65 +183,104 @@ class BA_AI_Connector {
      * Completion para Google Gemini (API diferente).
      */
     private function gemini_completion( $system_prompt, $user_prompt, $options = array() ) {
-        $model = isset( $options['model'] ) ? $options['model'] : $this->settings->get( 'ba_text_model' );
+        $selected_model = isset( $options['model'] ) ? $options['model'] : $this->settings->get( 'ba_text_model' );
 
-        // Fallback automático para modelos legados descontinuados ou não configurados
-        if ( empty( $model ) || in_array( $model, array( 'gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-flash', 'gemini-1.5-pro' ), true ) || ! array_key_exists( $model, self::$providers['gemini']['models'] ) ) {
-            $model = 'gemini-3.8-flash';
+        // Lista ordenada de modelos a tentar (o selecionado primeiro, seguido por alternativas estáveis)
+        $models_to_try = array();
+        if ( ! empty( $selected_model ) && array_key_exists( $selected_model, self::$providers['gemini']['models'] ) ) {
+            $models_to_try[] = $selected_model;
         }
 
-        $base_url = self::$providers['gemini']['base_url'];
-
-        $url = $base_url . '/models/' . $model . ':generateContent?key=' . $this->api_key;
-
-        $body = array(
-            'system_instruction' => array(
-                'parts' => array( array( 'text' => $system_prompt ) ),
-            ),
-            'contents' => array(
-                array(
-                    'parts' => array( array( 'text' => $user_prompt ) ),
-                ),
-            ),
-            'generationConfig' => array(
-                'temperature'   => isset( $options['temperature'] ) ? $options['temperature'] : 0.7,
-                'maxOutputTokens' => isset( $options['max_tokens'] ) ? $options['max_tokens'] : 4096,
-            ),
+        // Alternativas para fallback automático caso haja sobrecarga ("high demand")
+        $fallback_pool = array(
+            'gemini-2.5-flash',
+            'gemini-flash-latest',
+            'gemini-2.5-pro',
+            'gemini-3.8-flash',
+            'gemini-3.1-pro-preview',
+            'gemini-pro-latest',
         );
 
-        if ( isset( $options['json_mode'] ) && $options['json_mode'] ) {
-            $body['generationConfig']['responseMimeType'] = 'application/json';
+        foreach ( $fallback_pool as $fb_m ) {
+            if ( ! in_array( $fb_m, $models_to_try, true ) && array_key_exists( $fb_m, self::$providers['gemini']['models'] ) ) {
+                $models_to_try[] = $fb_m;
+            }
         }
 
-        // Gemini usa API key na URL, não no header
-        $response = $this->make_request( $url, $body, 0, false );
-
-        if ( is_wp_error( $response ) ) {
-            return $response;
+        if ( empty( $models_to_try ) ) {
+            $models_to_try = array( 'gemini-2.5-flash' );
         }
 
-        $tokens = 0;
-        if ( isset( $response['usageMetadata']['totalTokenCount'] ) ) {
-            $tokens = $response['usageMetadata']['totalTokenCount'];
-            $this->total_tokens_used += $tokens;
-        }
+        $base_url   = self::$providers['gemini']['base_url'];
+        $last_error = null;
 
-        if ( isset( $response['candidates'][0]['content']['parts'] ) && is_array( $response['candidates'][0]['content']['parts'] ) ) {
-            $text = '';
-            foreach ( $response['candidates'][0]['content']['parts'] as $part ) {
-                if ( isset( $part['text'] ) ) {
-                    $text .= $part['text'];
+        foreach ( $models_to_try as $model ) {
+            $url = $base_url . '/models/' . $model . ':generateContent?key=' . $this->api_key;
+
+            $body = array(
+                'system_instruction' => array(
+                    'parts' => array( array( 'text' => $system_prompt ) ),
+                ),
+                'contents' => array(
+                    array(
+                        'parts' => array( array( 'text' => $user_prompt ) ),
+                    ),
+                ),
+                'generationConfig' => array(
+                    'temperature'     => isset( $options['temperature'] ) ? $options['temperature'] : 0.7,
+                    'maxOutputTokens' => isset( $options['max_tokens'] ) ? $options['max_tokens'] : 4096,
+                ),
+            );
+
+            if ( isset( $options['json_mode'] ) && $options['json_mode'] ) {
+                $body['generationConfig']['responseMimeType'] = 'application/json';
+            }
+
+            // Gemini usa API key na URL, não no header
+            $response = $this->make_request( $url, $body, 0, false );
+
+            if ( is_wp_error( $response ) ) {
+                $last_error = $response;
+                $err_msg    = $response->get_error_message();
+                $err_data   = $response->get_error_data();
+                $status     = ( is_array( $err_data ) && isset( $err_data['status'] ) ) ? intval( $err_data['status'] ) : 0;
+
+                // Se for erro de sobrecarga/capacidade temporária (503 / 429 / high demand / overloaded), tenta o próximo modelo
+                if ( 503 === $status || 429 === $status || stripos( $err_msg, 'high demand' ) !== false || stripos( $err_msg, 'overloaded' ) !== false ) {
+                    continue;
+                }
+
+                // Se for outro erro definitivo (ex: chave de API inválida), retorna logo
+                return $response;
+            }
+
+            $tokens = 0;
+            if ( isset( $response['usageMetadata']['totalTokenCount'] ) ) {
+                $tokens = $response['usageMetadata']['totalTokenCount'];
+                $this->total_tokens_used += $tokens;
+            }
+
+            if ( isset( $response['candidates'][0]['content']['parts'] ) && is_array( $response['candidates'][0]['content']['parts'] ) ) {
+                $text = '';
+                foreach ( $response['candidates'][0]['content']['parts'] as $part ) {
+                    if ( isset( $part['text'] ) ) {
+                        $text .= $part['text'];
+                    }
+                }
+
+                if ( ! empty( $text ) ) {
+                    return array(
+                        'content'     => $text,
+                        'tokens_used' => $tokens,
+                        'model'       => $model,
+                        'provider'    => 'gemini',
+                    );
                 }
             }
+        }
 
-            if ( ! empty( $text ) ) {
-                return array(
-                    'content'     => $text,
-                    'tokens_used' => $tokens,
-                    'model'       => $model,
-                    'provider'    => 'gemini',
-                );
-            }
+        if ( is_wp_error( $last_error ) ) {
+            return $last_error;
         }
 
         return new WP_Error( 'ba_gemini_error', __( 'Resposta inválida do Gemini.', 'blog-automatico' ) );
@@ -342,10 +383,11 @@ class BA_AI_Connector {
         $body_raw    = wp_remote_retrieve_body( $response );
         $data        = json_decode( $body_raw, true );
 
-        if ( 429 === $status_code && $retry < 3 ) {
+        // Trata rate limit (429) e sobrecarga temporária dos servidores (503 / 502 / 504)
+        if ( ( 429 === $status_code || 503 === $status_code || 502 === $status_code || 504 === $status_code ) && $retry < 3 ) {
             $retry_after = wp_remote_retrieve_header( $response, 'retry-after' );
             $wait        = $retry_after ? intval( $retry_after ) : pow( 2, $retry + 1 );
-            sleep( min( $wait, 30 ) );
+            sleep( min( $wait, 15 ) );
             return $this->make_request( $url, $body, $retry + 1, $use_bearer );
         }
 
@@ -357,10 +399,15 @@ class BA_AI_Connector {
             }
             // Gemini format
             elseif ( isset( $data['error']['status'] ) ) {
-                $error_msg = $data['error']['status'] . ': ' . ( $data['error']['message'] ?? '' );
+                $error_msg = ( ! empty( $data['error']['message'] ) ) ? $data['error']['message'] : $data['error']['status'];
             }
             else {
                 $error_msg = sprintf( __( 'Erro da API (HTTP %d)', 'blog-automatico' ), $status_code );
+            }
+
+            // Tradução amigável para mensagens de pico de demanda do Google
+            if ( stripos( $error_msg, 'high demand' ) !== false || stripos( $error_msg, 'overloaded' ) !== false || 503 === $status_code ) {
+                $error_msg = __( 'Os servidores do Google Gemini estão enfrentando pico temporário de demanda ("High Demand"). Tentamos alternativas automáticas. Por favor, aguarde alguns instantes ou selecione outro modelo/provedor nas Configurações.', 'blog-automatico' );
             }
 
             return new WP_Error( 'ba_api_error', $error_msg, array( 'status' => $status_code ) );
