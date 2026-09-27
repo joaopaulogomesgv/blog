@@ -387,11 +387,11 @@ class BA_AI_Connector {
         $body_raw    = wp_remote_retrieve_body( $response );
         $data        = json_decode( $body_raw, true );
 
-        // Trata rate limit (429) e sobrecarga temporária dos servidores (503 / 502 / 504)
-        if ( ( 429 === $status_code || 503 === $status_code || 502 === $status_code || 504 === $status_code ) && $retry < 3 ) {
+        // Trata apenas sobrecarga temporária dos servidores (503 / 502 / 504)
+        if ( ( 503 === $status_code || 502 === $status_code || 504 === $status_code ) && $retry < 2 ) {
             $retry_after = wp_remote_retrieve_header( $response, 'retry-after' );
             $wait        = $retry_after ? intval( $retry_after ) : pow( 2, $retry + 1 );
-            sleep( min( $wait, 15 ) );
+            sleep( min( $wait, 10 ) );
             return $this->make_request( $url, $body, $retry + 1, $use_bearer );
         }
 
@@ -414,17 +414,17 @@ class BA_AI_Connector {
                 $error_msg = __( 'Os servidores do Google Gemini estão enfrentando pico temporário de demanda ("High Demand"). Tentamos alternativas automáticas. Por favor, aguarde alguns instantes ou selecione outro modelo/provedor nas Configurações.', 'blog-automatico' );
             }
 
-            // Tradução amigável para Quota Exceeded / Rate Limit do Google
+            // Diagnóstico detalhado para Quota / Rate Limit do Google
             if ( stripos( $error_msg, 'quota exceeded' ) !== false || stripos( $error_msg, 'RESOURCE_EXHAUSTED' ) !== false ) {
                 if ( stripos( $error_msg, 'limit: 0' ) !== false ) {
-                    $error_msg = __( 'O modelo selecionado não possui cota gratuita na sua chave do Google AI Studio (limit: 0). Por favor, vá em Blog Automático > Configurações e certifique-se de selecionar o modelo "Gemini 3.8 Flash (Recomendado / Cota Gratuita)".', 'blog-automatico' );
+                    $error_msg = __( 'A chave da API do Google AI Studio está com cota ZERO (limit: 0) para este projeto/modelo. O Google bloqueia o Free Tier se o projeto não estiver inicializado. Acesse aistudio.google.com/app/apikey e crie uma nova chave em um "Novo Projeto" (Create in new project), ou use OpenAI / DeepSeek em Configurações.', 'blog-automatico' );
                 } else {
-                    $wait_sec = 60;
+                    $wait_sec = 30;
                     if ( preg_match( '/retry in ([\d\.]+)s/i', $error_msg, $matches ) ) {
                         $wait_sec = ceil( floatval( $matches[1] ) );
                     }
                     $error_msg = sprintf(
-                        __( 'Limite de requisições por minuto atingido na cota gratuita do Google AI Studio. O Google solicita aguardar cerca de %d segundos para restabelecer a cota. Por favor, aguarde esse tempo e clique em "Gerar Post Completo Agora" novamente.', 'blog-automatico' ),
+                        __( 'A API do Google AI Studio recusou a chamada por cota/recursos (RESOURCE_EXHAUSTED). Tempo sugerido de espera: %d segundos. Se este erro persistir mesmo após aguardar, a chave do Google está restrita no Google Cloud: crie uma nova chave em aistudio.google.com (Create in new project) ou alterne para OpenAI / DeepSeek em Blog Automático > Configurações.', 'blog-automatico' ),
                         $wait_sec
                     );
                 }
