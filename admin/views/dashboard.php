@@ -112,21 +112,24 @@ $recent    = $logger->get_logs( 1, 5 );
         <div class="ba-table-wrap">
             <table class="ba-table">
                 <thead><tr>
-                    <th>Ideia</th><th>Status</th><th>Tokens</th><th>Imagens</th><th>Tempo</th><th>Data</th><th></th>
+                    <th>Ideia</th><th>Status</th><th>Tokens</th><th>Imagens</th><th>Tempo</th><th>Data</th><th style="text-align:right; width: 100px;">Ações</th>
                 </tr></thead>
                 <tbody>
                 <?php foreach ( $recent['items'] as $log ) : ?>
-                <tr>
+                <tr id="ba-log-row-<?php echo esc_attr( $log->id ); ?>">
                     <td><?php echo esc_html( wp_trim_words( $log->idea, 10, '…' ) ); ?></td>
-                    <td><span class="ba-badge <?php echo esc_attr( $log->status ); ?>"><?php echo esc_html( $log->status ); ?></span></td>
+                    <td><span class="ba-badge <?php echo esc_attr( $log->status ); ?>" title="<?php echo esc_attr( $log->error_message ); ?>"><?php echo esc_html( $log->status ); ?></span></td>
                     <td><?php echo esc_html( number_format( $log->tokens_used ) ); ?></td>
                     <td><?php echo esc_html( $log->images_generated ); ?></td>
                     <td><?php echo esc_html( round( $log->generation_time, 1 ) ); ?>s</td>
                     <td><?php echo esc_html( date_i18n( 'd/m/Y H:i', strtotime( $log->created_at ) ) ); ?></td>
-                    <td>
+                    <td style="text-align:right;">
                         <?php if ( $log->post_id > 0 ) : ?>
-                            <a href="<?php echo esc_url( get_edit_post_link( $log->post_id ) ); ?>" class="ba-btn ba-btn-ghost ba-btn-sm">Editar</a>
+                            <a href="<?php echo esc_url( get_edit_post_link( $log->post_id ) ); ?>" class="ba-btn ba-btn-ghost ba-btn-sm" style="margin-right: 4px;" title="Editar Post">Editar</a>
                         <?php endif; ?>
+                        <button type="button" class="ba-btn-icon ba-delete-log" data-id="<?php echo esc_attr( $log->id ); ?>" title="<?php esc_attr_e( 'Apagar este registro', 'blog-automatico' ); ?>">
+                            <span class="dashicons dashicons-trash"></span>
+                        </button>
                     </td>
                 </tr>
                 <?php endforeach; ?>

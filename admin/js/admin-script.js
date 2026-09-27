@@ -10,6 +10,7 @@
             this.bindGeneratePost();
             this.bindBulkAdd();
             this.bindQueueActions();
+            this.bindLogActions();
             this.bindTestConnection();
             this.bindProviderTabs();
             this.bindProviderSelect();
@@ -397,6 +398,87 @@
                 } else {
                     $icon.removeClass('dashicons-hidden').addClass('dashicons-visibility');
                 }
+            });
+        },
+
+        /**
+         * Ações de logs e histórico (exclusão individual e limpeza)
+         */
+        bindLogActions: function () {
+            // Excluir log individual
+            $(document).on('click', '.ba-delete-log', function (e) {
+                e.preventDefault();
+                const $btn = $(this);
+                const logId = $btn.data('id');
+                const $row = $('#ba-log-row-' + logId);
+
+                if (!confirm('Deseja realmente apagar este registro do histórico?')) {
+                    return;
+                }
+
+                $btn.prop('disabled', true);
+
+                $.ajax({
+                    url: baAdmin.ajaxUrl,
+                    type: 'POST',
+                    data: {
+                        action: 'ba_delete_log',
+                        nonce: baAdmin.nonce,
+                        id: logId
+                    },
+                    success: function (response) {
+                        if (response.success) {
+                            $row.fadeOut(300, function () {
+                                $(this).remove();
+                            });
+                        } else {
+                            alert((response.data && response.data.message) ? response.data.message : 'Erro ao excluir.');
+                            $btn.prop('disabled', false);
+                        }
+                    },
+                    error: function () {
+                        alert('Erro de conexão ao excluir o registro.');
+                        $btn.prop('disabled', false);
+                    }
+                });
+            });
+
+            // Limpar logs em massa (por status ou tudo)
+            $(document).on('click', '.ba-clear-logs', function (e) {
+                e.preventDefault();
+                const $btn = $(this);
+                const status = $btn.data('status') || 'all';
+                const msg = ('error' === status)
+                    ? 'Deseja realmente apagar todos os registros de falha do histórico?'
+                    : 'Deseja realmente limpar todo o histórico de gerações?';
+
+                if (!confirm(msg)) {
+                    return;
+                }
+
+                $btn.prop('disabled', true);
+
+                $.ajax({
+                    url: baAdmin.ajaxUrl,
+                    type: 'POST',
+                    data: {
+                        action: 'ba_clear_logs',
+                        nonce: baAdmin.nonce,
+                        status: status
+                    },
+                    success: function (response) {
+                        if (response.success) {
+                            location.reload();
+                        } else {
+                            alert((response.data && response.data.message) ? response.data.message : 'Erro ao limpar histórico.');
+                            $btn.prop('disabled', false);
+                        }
+                    },
+                    error: function () {
+                        alert('Erro de conexão ao limpar o histórico.');
+                        $btn.prop('disabled', false);
+                    }
+                });
             });
         },
 

@@ -4,7 +4,7 @@ Tags: ai, blog, automatic, elementor, seo, openai, gemini, grok, deepseek, conte
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.3.1
+Stable tag: 1.3.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -32,6 +32,12 @@ O **Blog Automático com IA** transforma suas ideias em artigos completos de blo
 5. Vá em 'Fila de Conteúdo', cole seus assuntos e ative o Piloto Automático!
 
 == Changelog ==
+
+= 1.3.2 =
+* Botão de exclusão (lixeira) adicionado na tabela de Últimas Gerações no Dashboard
+* Botão de exclusão individual adicionado no Histórico de Artigos Gerados
+* Opção de limpar falhas em massa ou limpar histórico completo
+* Endpoints AJAX seguros (ba_delete_log e ba_clear_logs) com confirmação e animação sem recarregar a página
 
 = 1.3.1 =
 * Correção de sobrecarga ("High Demand" / HTTP 503 e 429) no Google Gemini com retry exponencial automático

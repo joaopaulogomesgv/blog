@@ -64,6 +64,8 @@ class BA_Plugin_Core {
             add_action( 'wp_ajax_ba_remove_scheduled', array( $this, 'ajax_remove_scheduled' ) );
             add_action( 'wp_ajax_ba_clear_queue', array( $this, 'ajax_clear_queue' ) );
             add_action( 'wp_ajax_ba_get_provider_models', array( $this, 'ajax_get_provider_models' ) );
+            add_action( 'wp_ajax_ba_delete_log', array( $this, 'ajax_delete_log' ) );
+            add_action( 'wp_ajax_ba_clear_logs', array( $this, 'ajax_clear_logs' ) );
         }
 
         add_action( 'wp_head', array( $this, 'output_schema_markup' ) );
@@ -264,6 +266,39 @@ class BA_Plugin_Core {
             'image_models' => $providers[ $provider ]['image_models'],
             'supports_images' => $providers[ $provider ]['supports_images'],
         ));
+    }
+
+    public function ajax_delete_log() {
+        check_ajax_referer( 'ba_admin_nonce', 'nonce' );
+
+        if ( ! current_user_can( 'edit_posts' ) ) {
+            wp_send_json_error( array( 'message' => __( 'Sem permissão.', 'blog-automatico' ) ) );
+        }
+
+        $id = isset( $_POST['id'] ) ? absint( $_POST['id'] ) : 0;
+        if ( ! $id ) {
+            wp_send_json_error( array( 'message' => __( 'ID inválido.', 'blog-automatico' ) ) );
+        }
+
+        $logger = BA_Logger::get_instance();
+        $logger->delete_log( $id );
+
+        wp_send_json_success( array( 'message' => __( 'Registro apagado com sucesso.', 'blog-automatico' ) ) );
+    }
+
+    public function ajax_clear_logs() {
+        check_ajax_referer( 'ba_admin_nonce', 'nonce' );
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( array( 'message' => __( 'Sem permissão.', 'blog-automatico' ) ) );
+        }
+
+        $status = isset( $_POST['status'] ) ? sanitize_text_field( wp_unslash( $_POST['status'] ) ) : 'all';
+
+        $logger = BA_Logger::get_instance();
+        $logger->clear_logs( $status );
+
+        wp_send_json_success( array( 'message' => __( 'Histórico limpo com sucesso.', 'blog-automatico' ) ) );
     }
 
     public function output_schema_markup() {

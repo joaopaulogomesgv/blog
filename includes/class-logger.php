@@ -244,4 +244,42 @@ class BA_Logger {
             )
         );
     }
+
+    /**
+     * Remove um log específico por ID.
+     *
+     * @param int $log_id ID do log.
+     * @return bool
+     */
+    public function delete_log( $log_id ) {
+        global $wpdb;
+
+        $result = $wpdb->delete(
+            $this->table_name,
+            array( 'id' => intval( $log_id ) ),
+            array( '%d' )
+        );
+
+        return false !== $result;
+    }
+
+    /**
+     * Limpa logs por status ou todos.
+     *
+     * @param string $status Status a limpar ('error', 'all', etc).
+     * @return int|bool
+     */
+    public function clear_logs( $status = '' ) {
+        global $wpdb;
+
+        if ( empty( $status ) || 'all' === $status ) {
+            return $wpdb->query( "TRUNCATE TABLE {$this->table_name}" );
+        }
+
+        return $wpdb->delete(
+            $this->table_name,
+            array( 'status' => sanitize_text_field( $status ) ),
+            array( '%s' )
+        );
+    }
 }

@@ -79,17 +79,33 @@ $base_url = admin_url( 'admin.php?page=blog-automatico-history' );
                 <?php esc_html_e( 'Registros Detalhados', 'blog-automatico' ); ?>
             </h2>
 
-            <!-- Filtros Rápidos -->
-            <div style="display:flex; gap: 6px;">
-                <a href="<?php echo esc_url( $base_url ); ?>" class="ba-btn ba-btn-sm <?php echo empty( $status ) ? 'ba-btn-primary' : 'ba-btn-secondary'; ?>">
-                    <?php esc_html_e( 'Todos', 'blog-automatico' ); ?>
-                </a>
-                <a href="<?php echo esc_url( add_query_arg( 'status', 'success', $base_url ) ); ?>" class="ba-btn ba-btn-sm <?php echo 'success' === $status ? 'ba-btn-primary' : 'ba-btn-secondary'; ?>">
-                    <?php esc_html_e( 'Sucesso', 'blog-automatico' ); ?>
-                </a>
-                <a href="<?php echo esc_url( add_query_arg( 'status', 'error', $base_url ) ); ?>" class="ba-btn ba-btn-sm <?php echo 'error' === $status ? 'ba-btn-primary' : 'ba-btn-secondary'; ?>">
-                    <?php esc_html_e( 'Falhas', 'blog-automatico' ); ?>
-                </a>
+            <!-- Filtros Rápidos e Ações -->
+            <div style="display:flex; gap: 8px; flex-wrap:wrap; align-items:center;">
+                <div style="display:flex; gap: 6px;">
+                    <a href="<?php echo esc_url( $base_url ); ?>" class="ba-btn ba-btn-sm <?php echo empty( $status ) ? 'ba-btn-primary' : 'ba-btn-secondary'; ?>">
+                        <?php esc_html_e( 'Todos', 'blog-automatico' ); ?>
+                    </a>
+                    <a href="<?php echo esc_url( add_query_arg( 'status', 'success', $base_url ) ); ?>" class="ba-btn ba-btn-sm <?php echo 'success' === $status ? 'ba-btn-primary' : 'ba-btn-secondary'; ?>">
+                        <?php esc_html_e( 'Sucesso', 'blog-automatico' ); ?>
+                    </a>
+                    <a href="<?php echo esc_url( add_query_arg( 'status', 'error', $base_url ) ); ?>" class="ba-btn ba-btn-sm <?php echo 'error' === $status ? 'ba-btn-primary' : 'ba-btn-secondary'; ?>">
+                        <?php esc_html_e( 'Falhas', 'blog-automatico' ); ?>
+                    </a>
+                </div>
+
+                <?php if ( ! empty( $logs['items'] ) ) : ?>
+                    <div style="display:flex; gap: 6px; margin-left: 10px;">
+                        <?php if ( $stats['total_errors'] > 0 ) : ?>
+                            <button type="button" class="ba-btn ba-btn-danger ba-btn-sm ba-clear-logs" data-status="error">
+                                <span class="dashicons dashicons-trash" style="font-size:14px;width:14px;height:14px;line-height:1.2;"></span>
+                                <?php esc_html_e( 'Limpar Falhas', 'blog-automatico' ); ?>
+                            </button>
+                        <?php endif; ?>
+                        <button type="button" class="ba-btn ba-btn-ghost ba-btn-sm ba-clear-logs" data-status="all">
+                            <?php esc_html_e( 'Limpar Histórico', 'blog-automatico' ); ?>
+                        </button>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -112,12 +128,12 @@ $base_url = admin_url( 'admin.php?page=blog-automatico-history' );
                             <th style="width: 70px;"><?php esc_html_e( 'Imagens', 'blog-automatico' ); ?></th>
                             <th style="width: 70px;"><?php esc_html_e( 'Tempo', 'blog-automatico' ); ?></th>
                             <th style="width: 130px;"><?php esc_html_e( 'Data', 'blog-automatico' ); ?></th>
-                            <th style="width: 90px; text-align:right;"><?php esc_html_e( 'Ações', 'blog-automatico' ); ?></th>
+                            <th style="width: 100px; text-align:right;"><?php esc_html_e( 'Ações', 'blog-automatico' ); ?></th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ( $logs['items'] as $log ) : ?>
-                            <tr>
+                            <tr id="ba-log-row-<?php echo esc_attr( $log->id ); ?>">
                                 <td><span class="ba-code">#<?php echo esc_html( $log->id ); ?></span></td>
                                 <td>
                                     <strong style="color:#f0f6fc;" title="<?php echo esc_attr( $log->idea ); ?>">
@@ -156,8 +172,11 @@ $base_url = admin_url( 'admin.php?page=blog-automatico-history' );
                                             <span class="dashicons dashicons-external"></span>
                                         </a>
                                     <?php elseif ( ! empty( $log->error_message ) ) : ?>
-                                        <span class="dashicons dashicons-info" style="color:#f85149; cursor:help;" title="<?php echo esc_attr( $log->error_message ); ?>"></span>
+                                        <span class="dashicons dashicons-info" style="color:#f85149; cursor:help; vertical-align:middle; margin-right:4px;" title="<?php echo esc_attr( $log->error_message ); ?>"></span>
                                     <?php endif; ?>
+                                    <button type="button" class="ba-btn-icon ba-delete-log" data-id="<?php echo esc_attr( $log->id ); ?>" title="<?php esc_attr_e( 'Excluir este registro', 'blog-automatico' ); ?>">
+                                        <span class="dashicons dashicons-trash"></span>
+                                    </button>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
