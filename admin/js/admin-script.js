@@ -138,11 +138,12 @@
                 if (data.post_url) {
                     $result.find('.ba-link-view').attr('href', data.post_url).show();
                 }
+            } else {
                 $result.find('.ba-result-icon').html('<span class="dashicons dashicons-dismiss" style="font-size:32px;width:32px;height:32px;color:#ef4444;"></span>');
                 $result.find('.ba-result-title').html(
                     '<div style="color:#ffffff; font-weight:600; font-size:15px; margin-bottom:6px;">Falha na geração do artigo:</div>' +
                     '<div style="color:#fca5a5; font-size:13.5px; line-height:1.5;">' + (data.message || baAdmin.strings.error) + '</div>' +
-                    '<div style="margin-top:12px;">' +
+                    '<div style="margin-top:14px;">' +
                         '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-btn-diagnose" style="background:rgba(239,68,68,0.2) !important; border:1px solid #ef4444 !important; color:#ffffff !important; cursor:pointer;">' +
                             '<span class="ba-spinner"></span>' +
                             '<span class="dashicons dashicons-chart-bar" style="margin-right:4px;"></span>' +
