@@ -1,0 +1,16 @@
+# Arquivos de sistema e ambiente
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Agentes e configurações internas
+.agents/
+
+# Pacotes compactados e temporários
+*.zip
+*.tar.gz
+*.log
+
+# Editores
+.vscode/
+.idea/
