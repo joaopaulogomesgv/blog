@@ -722,22 +722,42 @@ select.ba-select:focus {
     border-color: #B4D443 !important;
 }
 
+.ba-actions-group {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 6px !important;
+    white-space: nowrap !important;
+    vertical-align: middle;
+}
+
 .ba-btn-icon {
     background: transparent;
     border: none;
     color: #888888;
     cursor: pointer;
-    padding: 4px;
+    padding: 5px;
     border-radius: 4px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    line-height: 1;
+    text-decoration: none;
+    flex-shrink: 0;
+    transition: background-color 0.15s ease, color 0.15s ease;
 }
 .ba-btn-icon:hover {
     background: #333333;
     color: #ffffff;
 }
-.ba-btn-icon .dashicons-trash:hover {
+.ba-btn-icon .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    line-height: 16px;
+}
+.ba-btn-icon .dashicons-trash:hover,
+.ba-btn-icon:hover .dashicons-trash {
     color: #ef4444;
 }
 

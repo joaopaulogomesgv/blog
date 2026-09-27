@@ -128,7 +128,7 @@ $base_url = admin_url( 'admin.php?page=blog-automatico-history' );
                             <th style="width: 70px;"><?php esc_html_e( 'Imagens', 'blog-automatico' ); ?></th>
                             <th style="width: 70px;"><?php esc_html_e( 'Tempo', 'blog-automatico' ); ?></th>
                             <th style="width: 130px;"><?php esc_html_e( 'Data', 'blog-automatico' ); ?></th>
-                            <th style="width: 100px; text-align:right;"><?php esc_html_e( 'Ações', 'blog-automatico' ); ?></th>
+                            <th style="width: 120px; text-align:right; white-space:nowrap;"><?php esc_html_e( 'Ações', 'blog-automatico' ); ?></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -163,20 +163,24 @@ $base_url = admin_url( 'admin.php?page=blog-automatico-history' );
                                 <td style="color:#8b949e;"><?php echo esc_html( $log->images_generated ); ?></td>
                                 <td style="color:#8b949e;"><?php echo esc_html( round( $log->generation_time, 1 ) ); ?>s</td>
                                 <td style="color:#8b949e; font-size:12px;"><?php echo esc_html( date_i18n( 'd/m/Y H:i', strtotime( $log->created_at ) ) ); ?></td>
-                                <td style="text-align:right;">
-                                    <?php if ( $log->post_id > 0 ) : ?>
-                                        <a href="<?php echo esc_url( get_edit_post_link( $log->post_id ) ); ?>" class="ba-btn-icon" target="_blank" title="<?php esc_attr_e( 'Editar Post', 'blog-automatico' ); ?>">
-                                            <span class="dashicons dashicons-edit"></span>
-                                        </a>
-                                        <a href="<?php echo esc_url( get_permalink( $log->post_id ) ); ?>" class="ba-btn-icon" target="_blank" title="<?php esc_attr_e( 'Ver Post no Site', 'blog-automatico' ); ?>">
-                                            <span class="dashicons dashicons-external"></span>
-                                        </a>
-                                    <?php elseif ( ! empty( $log->error_message ) ) : ?>
-                                        <span class="dashicons dashicons-info" style="color:#f85149; cursor:help; vertical-align:middle; margin-right:4px;" title="<?php echo esc_attr( $log->error_message ); ?>"></span>
-                                    <?php endif; ?>
-                                    <button type="button" class="ba-btn-icon ba-delete-log" data-id="<?php echo esc_attr( $log->id ); ?>" title="<?php esc_attr_e( 'Excluir este registro', 'blog-automatico' ); ?>">
-                                        <span class="dashicons dashicons-trash"></span>
-                                    </button>
+                                <td style="text-align:right; white-space:nowrap;">
+                                    <div class="ba-actions-group">
+                                        <?php if ( $log->post_id > 0 ) : ?>
+                                            <a href="<?php echo esc_url( get_edit_post_link( $log->post_id ) ); ?>" class="ba-btn-icon" target="_blank" title="<?php esc_attr_e( 'Editar Post', 'blog-automatico' ); ?>">
+                                                <span class="dashicons dashicons-edit"></span>
+                                            </a>
+                                            <a href="<?php echo esc_url( get_permalink( $log->post_id ) ); ?>" class="ba-btn-icon" target="_blank" title="<?php esc_attr_e( 'Ver Post no Site', 'blog-automatico' ); ?>">
+                                                <span class="dashicons dashicons-external"></span>
+                                            </a>
+                                        <?php elseif ( ! empty( $log->error_message ) ) : ?>
+                                            <span class="ba-btn-icon" style="color:#f85149; cursor:help;" title="<?php echo esc_attr( $log->error_message ); ?>">
+                                                <span class="dashicons dashicons-info"></span>
+                                            </span>
+                                        <?php endif; ?>
+                                        <button type="button" class="ba-btn-icon ba-delete-log" data-id="<?php echo esc_attr( $log->id ); ?>" title="<?php esc_attr_e( 'Excluir este registro', 'blog-automatico' ); ?>">
+                                            <span class="dashicons dashicons-trash"></span>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>

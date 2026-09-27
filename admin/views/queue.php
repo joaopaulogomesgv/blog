@@ -228,15 +228,17 @@ Os maiores erros ao instalar energia solar fotovoltaica"
                                     <td style="color:#8b949e; font-size:12px;">
                                         <?php echo esc_html( date_i18n( 'd/m/Y H:i', strtotime( $item->created_at ) ) ); ?>
                                     </td>
-                                    <td style="text-align:right;">
-                                        <button
-                                            type="button"
-                                            class="ba-btn-icon ba-remove-scheduled"
-                                            data-id="<?php echo esc_attr( $item->id ); ?>"
-                                            title="<?php esc_attr_e( 'Remover da fila', 'blog-automatico' ); ?>"
-                                        >
-                                            <span class="dashicons dashicons-trash"></span>
-                                        </button>
+                                    <td style="text-align:right; white-space:nowrap;">
+                                        <div class="ba-actions-group">
+                                            <button
+                                                type="button"
+                                                class="ba-btn-icon ba-remove-scheduled"
+                                                data-id="<?php echo esc_attr( $item->id ); ?>"
+                                                title="<?php esc_attr_e( 'Remover da fila', 'blog-automatico' ); ?>"
+                                            >
+                                                <span class="dashicons dashicons-trash"></span>
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
