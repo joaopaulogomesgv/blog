@@ -19,6 +19,7 @@ body[class*="page_blog-automatico"] #wpcontent,
 body[class*="blog-automatico"] #wpcontent {
     background-color: #1a1a1a !important;
     padding-left: 0 !important;
+    padding-right: 0 !important;
     padding-top: 0 !important;
 }
 
@@ -26,6 +27,7 @@ body.ba-admin-body #wpbody-content,
 body.toplevel_page_blog-automatico #wpbody-content,
 body[class*="page_blog-automatico"] #wpbody-content {
     padding-bottom: 40px !important;
+    padding-right: 0 !important;
     float: none !important;
 }
 
@@ -217,12 +219,14 @@ select.ba-select:focus {
     background-color: #121212 !important;
 }
 
-/* ---- Container Principal ---- */
+/* ---- Container Principal (Fluido / 100% da Tela) ---- */
 .ba-wrap {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
-    max-width: 1280px;
-    margin: 0;
-    padding: 20px 24px;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 20px 32px 40px 32px !important;
+    box-sizing: border-box !important;
     background: transparent;
     color: #cccccc;
     font-size: 13px;

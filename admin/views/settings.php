@@ -77,7 +77,7 @@ $categories      = get_categories( array( 'hide_empty' => false ) );
                         <label for="ba_posts_per_day">
                             <?php esc_html_e( 'Quantos posts publicar por dia?', 'blog-automatico' ); ?>
                         </label>
-                        <select id="ba_posts_per_day" name="ba_posts_per_day" class="ba-select" style="max-width: 280px;">
+                        <select id="ba_posts_per_day" name="ba_posts_per_day" class="ba-select" style="max-width: 380px;">
                             <option value="1" <?php selected( (int) $settings->get( 'ba_posts_per_day' ), 1 ); ?>>1 post por dia</option>
                             <option value="2" <?php selected( (int) $settings->get( 'ba_posts_per_day' ), 2 ); ?>>2 posts por dia (Recomendado)</option>
                             <option value="3" <?php selected( (int) $settings->get( 'ba_posts_per_day' ), 3 ); ?>>3 posts por dia</option>
