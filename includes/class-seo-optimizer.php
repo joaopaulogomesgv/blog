@@ -49,21 +49,22 @@ class BA_SEO_Optimizer {
      *
      * @param int   $post_id ID do post.
      * @param array $content Conteúdo gerado pela IA.
+     * @param int   $primary_category_id ID da categoria primária controlada.
      * @return bool
      */
-    public function optimize( $post_id, $content ) {
+    public function optimize( $post_id, $content, $primary_category_id = 0 ) {
         $seo_plugin = $this->settings->get( 'ba_seo_plugin' );
 
         // Aplicar meta tags conforme o plugin de SEO
         switch ( $seo_plugin ) {
             case 'yoast':
-                $this->apply_yoast_seo( $post_id, $content );
+                $this->apply_yoast_seo( $post_id, $content, $primary_category_id );
                 break;
             case 'rankmath':
-                $this->apply_rankmath_seo( $post_id, $content );
+                $this->apply_rankmath_seo( $post_id, $content, $primary_category_id );
                 break;
             default:
-                $this->apply_basic_seo( $post_id, $content );
+                $this->apply_basic_seo( $post_id, $content, $primary_category_id );
                 break;
         }
 
@@ -78,8 +79,9 @@ class BA_SEO_Optimizer {
      *
      * @param int   $post_id ID do post.
      * @param array $content Conteúdo.
+     * @param int   $primary_category_id ID da categoria primária.
      */
-    private function apply_yoast_seo( $post_id, $content ) {
+    private function apply_yoast_seo( $post_id, $content, $primary_category_id = 0 ) {
         // Meta title
         update_post_meta( $post_id, '_yoast_wpseo_title', sanitize_text_field( $content['titulo'] ) );
 
@@ -89,6 +91,11 @@ class BA_SEO_Optimizer {
         // Focus keyword
         if ( isset( $content['palavra_chave_principal'] ) ) {
             update_post_meta( $post_id, '_yoast_wpseo_focuskw', sanitize_text_field( $content['palavra_chave_principal'] ) );
+        }
+
+        // Primary Category para Breadcrumbs do Yoast
+        if ( $primary_category_id > 0 ) {
+            update_post_meta( $post_id, '_yoast_wpseo_primary_category', (int) $primary_category_id );
         }
 
         // Canonical URL (deixar em branco para usar o padrão)
@@ -112,8 +119,9 @@ class BA_SEO_Optimizer {
      *
      * @param int   $post_id ID do post.
      * @param array $content Conteúdo.
+     * @param int   $primary_category_id ID da categoria primária.
      */
-    private function apply_rankmath_seo( $post_id, $content ) {
+    private function apply_rankmath_seo( $post_id, $content, $primary_category_id = 0 ) {
         // Meta title
         update_post_meta( $post_id, 'rank_math_title', sanitize_text_field( $content['titulo'] ) );
 
@@ -129,6 +137,11 @@ class BA_SEO_Optimizer {
         if ( isset( $content['palavras_chave_secundarias'] ) && is_array( $content['palavras_chave_secundarias'] ) ) {
             $secondary = implode( ',', array_map( 'sanitize_text_field', $content['palavras_chave_secundarias'] ) );
             update_post_meta( $post_id, 'rank_math_focus_keyword', sanitize_text_field( $content['palavra_chave_principal'] ) . ',' . $secondary );
+        }
+
+        // Primary Category para Breadcrumbs do Rank Math
+        if ( $primary_category_id > 0 ) {
+            update_post_meta( $post_id, 'rank_math_primary_category', (int) $primary_category_id );
         }
 
         // Open Graph
@@ -148,8 +161,9 @@ class BA_SEO_Optimizer {
      *
      * @param int   $post_id ID do post.
      * @param array $content Conteúdo.
+     * @param int   $primary_category_id ID da categoria primária.
      */
-    private function apply_basic_seo( $post_id, $content ) {
+    private function apply_basic_seo( $post_id, $content, $primary_category_id = 0 ) {
         // Meta description básica (sem plugin SEO)
         update_post_meta( $post_id, '_ba_meta_description', sanitize_text_field( $content['meta_description'] ) );
 
@@ -160,6 +174,10 @@ class BA_SEO_Optimizer {
 
         if ( isset( $content['palavras_chave_secundarias'] ) ) {
             update_post_meta( $post_id, '_ba_secondary_keywords', array_map( 'sanitize_text_field', $content['palavras_chave_secundarias'] ) );
+        }
+
+        if ( $primary_category_id > 0 ) {
+            update_post_meta( $post_id, '_ba_primary_category', (int) $primary_category_id );
         }
     }
 

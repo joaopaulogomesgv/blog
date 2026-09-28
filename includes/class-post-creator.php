@@ -125,10 +125,25 @@ class BA_Post_Creator {
             $category_ids = $this->seo_optimizer->process_categories( $content['categorias_sugeridas'] );
         }
 
-        // Adicionar categoria padrão se configurada
-        $default_cat = intval( $this->settings->get( 'ba_default_category' ) );
-        if ( $default_cat > 0 && ! in_array( $default_cat, $category_ids, true ) ) {
-            array_unshift( $category_ids, $default_cat );
+        // Se o artigo possui contexto Pomaroli, aplicar regras estritas de isolamento
+        if ( ! empty( $pomaroli_context ) ) {
+            // 1. NÃO adicionar ba_default_category automaticamente
+            // 2. Garantir pelo menos uma categoria controlada válida
+            if ( empty( $category_ids ) ) {
+                $fallback_cat = ! empty( $pomaroli_context['category'] ) ? $pomaroli_context['category'] : 'Questões';
+                $category_ids = $this->seo_optimizer->process_categories( array( $fallback_cat ) );
+            }
+            // 3. Remover "Sem categoria" (default_category do WP) se estiver presente com outras
+            $default_wp_cat = (int) get_option( 'default_category' );
+            if ( $default_wp_cat > 0 && count( $category_ids ) > 1 ) {
+                $category_ids = array_values( array_diff( $category_ids, array( $default_wp_cat ) ) );
+            }
+        } else {
+            // Posts normais: adicionar categoria padrão se configurada
+            $default_cat = intval( $this->settings->get( 'ba_default_category' ) );
+            if ( $default_cat > 0 && ! in_array( $default_cat, $category_ids, true ) ) {
+                array_unshift( $category_ids, $default_cat );
+            }
         }
 
         if ( isset( $content['tags_sugeridas'] ) ) {
@@ -217,7 +232,8 @@ class BA_Post_Creator {
         update_post_meta( $post_id, '_wp_page_template', 'default' );
 
         // === ETAPA 5: Otimização SEO ===
-        $this->seo_optimizer->optimize( $post_id, $content );
+        $primary_cat_id = ! empty( $category_ids ) ? (int) $category_ids[0] : 0;
+        $this->seo_optimizer->optimize( $post_id, $content, $primary_cat_id );
 
         // === ETAPA 6: Salvar metadados ===
         update_post_meta( $post_id, '_ba_generated', true );

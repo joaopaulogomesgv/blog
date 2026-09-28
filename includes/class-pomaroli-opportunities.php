@@ -438,10 +438,11 @@ class BA_Pomaroli_Opportunities {
         global $wpdb;
         $table_name = $wpdb->prefix . 'ba_scheduled_ideas';
 
-        // Verificar se já não está na fila
+        // Verificar se já não está na fila pelo HASH exato da oportunidade
+        $hash_pattern = '%"hash":"' . $wpdb->esc_like( $target['hash'] ) . '"%';
         $exists_in_queue = $wpdb->get_var( $wpdb->prepare(
             "SELECT id FROM {$table_name} WHERE idea LIKE %s AND status IN ('queued', 'processing')",
-            '%' . $wpdb->esc_like( $target['title'] ) . '%'
+            $hash_pattern
         ) );
 
         if ( $exists_in_queue ) {

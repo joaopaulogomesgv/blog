@@ -478,7 +478,22 @@ class BA_Plugin_Core {
         if ( empty( $schema ) || ! is_array( $schema ) ) {
             return;
         }
+
+        $seo_plugin = class_exists( 'BA_Settings' ) ? BA_Settings::get_instance()->get( 'ba_seo_plugin' ) : 'basic';
+        $has_external_seo = ( 'yoast' === $seo_plugin && defined( 'WPSEO_VERSION' ) ) ||
+                            ( 'rankmath' === $seo_plugin && defined( 'RANK_MATH_VERSION' ) ) ||
+                            defined( 'WPSEO_VERSION' ) ||
+                            defined( 'RANK_MATH_VERSION' );
+
         foreach ( $schema as $type => $data ) {
+            // Se Yoast ou Rank Math estiver ativo, não gerar outro Article próprio
+            if ( 'article' === $type && $has_external_seo ) {
+                continue;
+            }
+            // FAQPage somente quando existir FAQ real no conteúdo
+            if ( 'faq' === $type && ( empty( $data['mainEntity'] ) || ! is_array( $data['mainEntity'] ) ) ) {
+                continue;
+            }
             echo '<script type="application/ld+json">' . wp_json_encode( $data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) . '</script>' . "\n";
         }
     }

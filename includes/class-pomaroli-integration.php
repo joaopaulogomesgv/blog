@@ -128,7 +128,7 @@ class BA_Pomaroli_Integration {
         delete_transient( 'ba_pomaroli_opportunities_list' );
 
         global $wpdb;
-        $wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_ba_pomaroli_%' OR option_name LIKE '_transient_timeout_ba_pomaroli_%'" );
+        $wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_ba_pomaroli_%' OR option_name LIKE '_transient_timeout_ba_pomaroli_%' OR option_name LIKE '_transient_ba_pom_%' OR option_name LIKE '_transient_timeout_ba_pom_%'" );
     }
 
     /**
@@ -317,7 +317,7 @@ class BA_Pomaroli_Integration {
 
         // Chave de cache transient baseada nos parâmetros
         ksort( $terms_by_tax );
-        $cache_key = 'ba_pom_cnt_' . md5( wp_json_encode( $terms_by_tax ) );
+        $cache_key = 'ba_pomaroli_cnt_' . md5( wp_json_encode( $terms_by_tax ) );
         $cached    = get_transient( $cache_key );
         if ( false !== $cached ) {
             return (int) $cached;
